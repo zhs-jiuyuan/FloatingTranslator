@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Superpowers brainstorming artifacts
+.superpowers/
+
+# Application logs
+logs/*
+!logs/.gitkeep
+
+# User config (contains API keys)
+config.json
