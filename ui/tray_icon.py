@@ -64,7 +64,7 @@ class TrayIcon(QSystemTrayIcon):
 
         menu.addSeparator()
 
-        translate_action = QAction("手动翻译 (读取剪贴板)", self)
+        translate_action = QAction("手动翻译", self)
         translate_action.triggered.connect(self.translate_requested.emit)
         menu.addAction(translate_action)
 

@@ -12,8 +12,8 @@ import os
 import signal
 import sys
 
-import pyperclip
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QClipboard
 from PySide6.QtWidgets import QApplication
 
 from config import AppConfig, ConfigManager
@@ -89,7 +89,7 @@ class FloatingTranslatorApp:
         self._clipboard_timer = QTimer()
         self._clipboard_timer.timeout.connect(self._poll_clipboard)
         self._clipboard_timer.start(self.CLIPBOARD_POLL_MS)
-        logger.info("剪贴板监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
+        logger.info("鼠标选区监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
 
     def _connect_engine_signals(self) -> None:
         try:
@@ -106,11 +106,13 @@ class FloatingTranslatorApp:
     def _poll_clipboard(self) -> None:
         if self._translating:
             return
-        try:
-            text = pyperclip.paste()
-        except Exception:
+        # X11: Selection mode 读取鼠标划选的 PRIMARY 选区
+        # 与 Ctrl+C 的 CLIPBOARD 独立，互不干扰
+        clipboard = QApplication.clipboard()
+        text = clipboard.text(QClipboard.Mode.Selection)
+        if not text:
             return
-        if text and text.strip() and text != self._last_clipboard:
+        if text != self._last_clipboard:
             self._last_clipboard = text
             self._translate(text.strip())
 
@@ -182,7 +184,7 @@ def main() -> None:
 
     translator = FloatingTranslatorApp()
 
-    logger.info("应用已启动，复制文字即可翻译...")
+    logger.info("应用已启动，鼠标划选文字即可翻译...")
     sys.exit(app.exec())
 
 
