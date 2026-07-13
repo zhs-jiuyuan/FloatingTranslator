@@ -1,20 +1,12 @@
 """FloatingTranslator 应用入口——组装所有组件并启动事件循环。"""
 from __future__ import annotations
 
-"""FloatingTranslator 应用入口——组装所有组件并启动事件循环。"""
-from __future__ import annotations
-
-import logging
-import os
-import signal
-import sys
-
 # 修复 PySide6 shiboken 与 six 库的兼容性问题
 # six._SixMetaPathImporter 作为 loader 被传入 _module_repr_from_spec 但缺少 _path 属性
-# 直接为 _SixMetaPathImporter 实例添加 _path 属性
 import six  # noqa: F401
 if not hasattr(six._SixMetaPathImporter, "_path"):
     six._SixMetaPathImporter._path = None
+
 import logging
 import os
 import signal
