@@ -54,11 +54,12 @@ class HotkeyManager(QObject):
             "shift": {pynput_keyboard.Key.shift, pynput_keyboard.Key.shift_l, pynput_keyboard.Key.shift_r},
             "alt": {pynput_keyboard.Key.alt, pynput_keyboard.Key.alt_l, pynput_keyboard.Key.alt_r, pynput_keyboard.Key.alt_gr},
         }
+        function_keys = {f"f{i}": getattr(pynput_keyboard.Key, f"f{i}", None) for i in range(1, 13)}
         current_keys: set = set()
 
         def on_press(key: pynput_keyboard.Key | pynput_keyboard.KeyCode | None) -> None:
             current_keys.add(key)
-            if self._check_combo(current_keys, modifier_variants, hotkey_parts):
+            if self._check_combo(current_keys, modifier_variants, function_keys, hotkey_parts):
                 self._on_triggered()
 
         def on_release(key: pynput_keyboard.Key | pynput_keyboard.KeyCode | None) -> None:
@@ -72,11 +73,14 @@ class HotkeyManager(QObject):
         self._thread = threading.Thread(target=run, daemon=True)
         self._thread.start()
 
-    def _check_combo(self, current_keys: set, modifier_variants: dict, parts: list[str]) -> bool:
+    def _check_combo(self, current_keys: set, modifier_variants: dict, function_keys: dict, parts: list[str]) -> bool:
         for part in parts:
             found = False
             if part in modifier_variants:
                 if current_keys & modifier_variants[part]:
+                    found = True
+            elif part in function_keys:
+                if function_keys[part] in current_keys:
                     found = True
             else:
                 try:

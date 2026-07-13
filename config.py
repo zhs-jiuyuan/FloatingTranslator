@@ -15,7 +15,7 @@ class AppConfig:
     target_lang: str = "zh"
     source_lang: str = "auto"
     engine_type: str = "free_online"
-    hotkey: str = "ctrl+shift+t"
+    hotkey: str = "f1"
     opacity: float = 0.92
     auto_hide_seconds: int = 5
 
