@@ -106,13 +106,12 @@ class FloatingTranslatorApp:
     def _poll_clipboard(self) -> None:
         if self._translating:
             return
-        # X11: Selection mode 读取鼠标划选的 PRIMARY 选区
-        # 与 Ctrl+C 的 CLIPBOARD 独立，互不干扰
         clipboard = QApplication.clipboard()
         text = clipboard.text(QClipboard.Mode.Selection)
         if not text:
             return
         if text != self._last_clipboard:
+            logger.debug("检测到选区变化: %s...", text[:80])
             self._last_clipboard = text
             self._translate(text.strip())
 
