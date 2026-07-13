@@ -12,7 +12,8 @@ import os
 import signal
 import sys
 
-from PySide6.QtCore import Qt
+import pyperclip
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 from config import AppConfig, ConfigManager
@@ -23,9 +24,7 @@ from engine.local_model import LocalModelEngine
 from ui.floating_window import FloatingWindow
 from ui.settings_dialog import SettingsDialog
 from ui.tray_icon import TrayIcon
-from utils.hotkey import HotkeyManager
 from utils.language_detector import LanguageDetector
-from utils.text_selector import TextSelector
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +62,14 @@ def create_engine(config: AppConfig) -> TranslationEngine:
 
 
 class FloatingTranslatorApp:
+    CLIPBOARD_POLL_MS = 300  # 剪贴板轮询间隔
+
     def __init__(self) -> None:
         self._config_path = os.path.join(BASE_DIR, "config.json")
         self._config = ConfigManager.load(self._config_path)
         self._engine = create_engine(self._config)
+        self._last_clipboard = ""
+        self._translating = False
 
         self._floating_window = FloatingWindow(
             opacity=self._config.opacity,
@@ -80,11 +83,13 @@ class FloatingTranslatorApp:
         self._tray_icon.translate_requested.connect(self._on_translate_triggered)
         self._tray_icon.show()
 
-        self._hotkey = HotkeyManager(hotkey=self._config.hotkey)
-        self._hotkey.triggered.connect(self._on_translate_triggered)
-        self._hotkey.start()
-
         self._connect_engine_signals()
+
+        # 启动剪贴板轮询
+        self._clipboard_timer = QTimer()
+        self._clipboard_timer.timeout.connect(self._poll_clipboard)
+        self._clipboard_timer.start(self.CLIPBOARD_POLL_MS)
+        logger.info("剪贴板监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
 
     def _connect_engine_signals(self) -> None:
         try:
@@ -97,6 +102,17 @@ class FloatingTranslatorApp:
             pass
         self._engine.result_ready.connect(self._on_result_ready)
         self._engine.error_occurred.connect(self._on_error_occurred)
+
+    def _poll_clipboard(self) -> None:
+        if self._translating:
+            return
+        try:
+            text = pyperclip.paste()
+        except Exception:
+            return
+        if text and text.strip() and text != self._last_clipboard:
+            self._last_clipboard = text
+            self._translate(text.strip())
 
     def _on_engine_changed(self, engine_type: str) -> None:
         self._config.engine_type = engine_type
@@ -121,11 +137,10 @@ class FloatingTranslatorApp:
             logger.info("配置已更新")
 
     def _on_translate_triggered(self) -> None:
-        text = TextSelector.get_selected_text()
-        if not text:
-            self._floating_window.show_error("未检测到选中文本，请先选中文字再按快捷键")
-            return
+        self._poll_clipboard()
 
+    def _translate(self, text: str) -> None:
+        self._translating = True
         source_lang = LanguageDetector.detect(text)
         target_lang = self._config.target_lang
 
@@ -142,9 +157,11 @@ class FloatingTranslatorApp:
         self._engine.translate(text, source_lang, target_lang)
 
     def _on_result_ready(self, result: str) -> None:
+        self._translating = False
         self._floating_window._result_label.setText(result)
 
     def _on_error_occurred(self, error: str) -> None:
+        self._translating = False
         self._floating_window.show_error(error)
 
 
@@ -165,7 +182,7 @@ def main() -> None:
 
     translator = FloatingTranslatorApp()
 
-    logger.info("应用已启动，等待热键触发...")
+    logger.info("应用已启动，复制文字即可翻译...")
     sys.exit(app.exec())
 
 
