@@ -10,10 +10,10 @@ if not hasattr(six._SixMetaPathImporter, "_path"):
 import logging
 import os
 import signal
+import subprocess
 import sys
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QClipboard
 from PySide6.QtWidgets import QApplication
 
 from config import AppConfig, ConfigManager
@@ -106,14 +106,26 @@ class FloatingTranslatorApp:
     def _poll_clipboard(self) -> None:
         if self._translating:
             return
-        clipboard = QApplication.clipboard()
-        text = clipboard.text(QClipboard.Mode.Selection)
+        text = self._read_primary_selection()
         if not text:
             return
         if text != self._last_clipboard:
             logger.debug("检测到选区变化: %s...", text[:80])
             self._last_clipboard = text
-            self._translate(text.strip())
+            self._translate(text)
+
+    @staticmethod
+    def _read_primary_selection() -> str:
+        try:
+            result = subprocess.run(
+                ["xclip", "-o", "-selection", "primary"],
+                capture_output=True, text=True, timeout=1,
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except Exception:
+            pass
+        return ""
 
     def _on_engine_changed(self, engine_type: str) -> None:
         self._config.engine_type = engine_type
