@@ -48,18 +48,17 @@ class HotkeyManager(QObject):
             return
 
         hotkey_parts = self._hotkey.split("+")
-        key_map = {
-            "ctrl": pynput_keyboard.Key.ctrl,
-            "ctrl_l": pynput_keyboard.Key.ctrl_l,
-            "ctrl_r": pynput_keyboard.Key.ctrl_r,
-            "shift": pynput_keyboard.Key.shift,
-            "alt": pynput_keyboard.Key.alt,
+        # pynput 对修饰键返回具体变体 (ctrl_l/ctrl_r)，而非通用名 (ctrl)
+        modifier_variants = {
+            "ctrl": {pynput_keyboard.Key.ctrl, pynput_keyboard.Key.ctrl_l, pynput_keyboard.Key.ctrl_r},
+            "shift": {pynput_keyboard.Key.shift, pynput_keyboard.Key.shift_l, pynput_keyboard.Key.shift_r},
+            "alt": {pynput_keyboard.Key.alt, pynput_keyboard.Key.alt_l, pynput_keyboard.Key.alt_r, pynput_keyboard.Key.alt_gr},
         }
         current_keys: set = set()
 
         def on_press(key: pynput_keyboard.Key | pynput_keyboard.KeyCode | None) -> None:
             current_keys.add(key)
-            if self._check_combo(current_keys, key_map, hotkey_parts):
+            if self._check_combo(current_keys, modifier_variants, hotkey_parts):
                 self._on_triggered()
 
         def on_release(key: pynput_keyboard.Key | pynput_keyboard.KeyCode | None) -> None:
@@ -73,18 +72,22 @@ class HotkeyManager(QObject):
         self._thread = threading.Thread(target=run, daemon=True)
         self._thread.start()
 
-    def _check_combo(self, current_keys: set, key_map: dict, parts: list[str]) -> bool:
-        required = set()
+    def _check_combo(self, current_keys: set, modifier_variants: dict, parts: list[str]) -> bool:
         for part in parts:
-            if part in key_map:
-                required.add(key_map[part])
+            found = False
+            if part in modifier_variants:
+                if current_keys & modifier_variants[part]:
+                    found = True
             else:
                 try:
                     from pynput.keyboard import KeyCode
-                    required.add(KeyCode.from_char(part))
+                    if KeyCode.from_char(part) in current_keys:
+                        found = True
                 except Exception:
                     pass
-        return required and required.issubset(current_keys)
+            if not found:
+                return False
+        return True
 
     def _on_triggered(self) -> None:
         logger.info("热键 %s 触发", self._hotkey)
