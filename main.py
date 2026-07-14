@@ -73,9 +73,9 @@ class FloatingTranslatorApp:
 
         self._floating_window = FloatingWindow(
             opacity=self._config.opacity,
-            auto_hide_seconds=self._config.auto_hide_seconds,
         )
         self._floating_window.close_requested.connect(self._floating_window.hide)
+        self._floating_window.start_tracking()
 
         self._tray_icon = TrayIcon(self._config)
         self._tray_icon.engine_changed.connect(self._on_engine_changed)
@@ -108,6 +108,9 @@ class FloatingTranslatorApp:
             return
         text = self._read_primary_selection()
         if not text:
+            if self._last_clipboard:
+                self._last_clipboard = ""
+                self._floating_window.clear_content()
             return
         if text != self._last_clipboard:
             logger.debug("检测到选区变化: %s...", text[:80])
@@ -145,7 +148,6 @@ class FloatingTranslatorApp:
             self._connect_engine_signals()
             self._floating_window._opacity = self._config.opacity
             self._floating_window.setWindowOpacity(self._config.opacity)
-            self._floating_window._auto_hide_seconds = self._config.auto_hide_seconds
             self._tray_icon.update_engine_check(self._config.engine_type)
             logger.info("配置已更新")
 
