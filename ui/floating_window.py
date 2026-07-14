@@ -24,16 +24,16 @@ class FloatingWindow(QWidget):
     close_requested = Signal()
 
     def __init__(
-        self, opacity: float = 0.92, auto_hide_seconds: int = 5, parent=None
+        self, opacity: float = 0.92, parent=None
     ) -> None:
         super().__init__(parent)
         self._opacity = opacity
-        self._auto_hide_seconds = auto_hide_seconds
-        self._hide_timer = QTimer(self)
-        self._hide_timer.setSingleShot(True)
-        self._hide_timer.timeout.connect(self.hide)
         self._dragging = False
         self._drag_pos = None
+
+        self._mouse_track_timer = QTimer(self)
+        self._mouse_track_timer.setInterval(50)
+        self._mouse_track_timer.timeout.connect(self._position_near_cursor)
 
         self._setup_ui()
         self._setup_window_flags()
@@ -135,7 +135,6 @@ class FloatingWindow(QWidget):
         self.adjustSize()
         self._position_near_cursor()
         self.show()
-        self._reset_hide_timer()
 
     def show_error(self, error: str) -> None:
         self._error_label.setText(f"⚠ {error}")
@@ -145,7 +144,6 @@ class FloatingWindow(QWidget):
         self.adjustSize()
         self._position_near_cursor()
         self.show()
-        self._reset_hide_timer()
 
     def show_placeholder(self, text: str = "") -> None:
         display = text or "翻译结果将在此处显示"
@@ -156,7 +154,6 @@ class FloatingWindow(QWidget):
         self.adjustSize()
         self._position_near_cursor()
         self.show()
-        self._reset_hide_timer()
 
     def _position_near_cursor(self) -> None:
         screen = QApplication.screenAt(self.cursor().pos())
@@ -179,16 +176,18 @@ class FloatingWindow(QWidget):
 
         self.move(x, y)
 
-    def _reset_hide_timer(self) -> None:
-        self._hide_timer.stop()
-        if self._auto_hide_seconds > 0:
-            self._hide_timer.start(self._auto_hide_seconds * 1000)
+    def clear_content(self) -> None:
+        self._source_text.clear()
+        self._source_text.setVisible(False)
+        self._direction_label.setText("")
+        self._result_label.setText("翻译结果将在此处显示")
+        self._error_label.clear()
+        self._error_label.setVisible(False)
 
-    def enterEvent(self, event) -> None:
-        self._hide_timer.stop()
-
-    def leaveEvent(self, event) -> None:
-        self._reset_hide_timer()
+    def start_tracking(self) -> None:
+        self._position_near_cursor()
+        self.show()
+        self._mouse_track_timer.start()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
