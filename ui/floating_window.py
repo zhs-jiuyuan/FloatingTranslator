@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFont, QMouseEvent
+from PySide6.QtGui import QCursor, QFont, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -156,19 +156,19 @@ class FloatingWindow(QWidget):
         self.show()
 
     def _position_near_cursor(self) -> None:
-        screen = QApplication.screenAt(self.cursor().pos())
+        cursor_global = QCursor.pos()
+        screen = QApplication.screenAt(cursor_global)
         if screen is None:
             screen = QApplication.primaryScreen()
         screen_geom = screen.availableGeometry()
 
-        cursor_pos = self.cursor().pos()
-        x = cursor_pos.x() + 16
-        y = cursor_pos.y() + 16
+        x = cursor_global.x() + 16
+        y = cursor_global.y() + 16
 
         if x + self.width() > screen_geom.right():
             x = screen_geom.right() - self.width() - 8
         if y + self.height() > screen_geom.bottom():
-            y = cursor_pos.y() - self.height() - 8
+            y = cursor_global.y() - self.height() - 8
         if x < screen_geom.left():
             x = screen_geom.left() + 8
         if y < screen_geom.top():
@@ -189,6 +189,9 @@ class FloatingWindow(QWidget):
         self._position_near_cursor()
         self.show()
         self._mouse_track_timer.start()
+        logger.debug("鼠标追踪已启动，定时器ID=%d，间隔=%dms",
+                     self._mouse_track_timer.timerId(),
+                     self._mouse_track_timer.interval())
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
