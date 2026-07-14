@@ -1,17 +1,19 @@
 """FloatingTranslator 应用入口——组装所有组件并启动事件循环。"""
 from __future__ import annotations
 
+import os
+import sys
+
+os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+
 # 修复 PySide6 shiboken 与 six 库的兼容性问题
-# six._SixMetaPathImporter 作为 loader 被传入 _module_repr_from_spec 但缺少 _path 属性
 import six  # noqa: F401
 if not hasattr(six._SixMetaPathImporter, "_path"):
     six._SixMetaPathImporter._path = None
 
 import logging
-import os
 import signal
 import subprocess
-import sys
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication

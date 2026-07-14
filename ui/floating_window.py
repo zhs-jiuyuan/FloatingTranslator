@@ -30,30 +30,25 @@ class FloatingWindow(QWidget):
         self._opacity = opacity
         self._dragging = False
         self._drag_pos = None
+        self._track_timer: QTimer | None = None
 
-        self._mouse_track_timer = QTimer(self)
-        self._mouse_track_timer.setInterval(50)
-        self._mouse_track_timer.timeout.connect(self._position_near_cursor)
-
-        self._xlib_display = None
+        self._xd = None
         try:
             from Xlib import display as xdisplay
-            self._xlib_display = xdisplay.Display()
+            self._xd = xdisplay.Display()
         except Exception:
             pass
 
         self._setup_ui()
-        self._setup_window_flags()
+        self._setup_window()
 
-    def _setup_window_flags(self) -> None:
+    def _setup_window(self) -> None:
         self.setWindowFlags(
-            Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.FramelessWindowHint
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
-            | Qt.WindowType.NoDropShadowWindowHint
         )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
-        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, False)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         self.setWindowOpacity(self._opacity)
 
     def _setup_ui(self) -> None:
@@ -135,12 +130,11 @@ class FloatingWindow(QWidget):
         self._source_text.setText(source_text)
         self._source_text.setVisible(bool(source_text.strip()))
         self._source_label.setText("原文" if source_lang.startswith("zh") else "Source")
-
         self._direction_label.setText(f"{source_lang} → {target_lang}")
         self._result_label.setText(result)
         self._error_label.setVisible(False)
         self.adjustSize()
-        self._position_near_cursor()
+        self._follow_cursor()
         self.show()
 
     def show_error(self, error: str) -> None:
@@ -149,7 +143,7 @@ class FloatingWindow(QWidget):
         self._result_label.setText("")
         self._source_text.setVisible(False)
         self.adjustSize()
-        self._position_near_cursor()
+        self._follow_cursor()
         self.show()
 
     def show_placeholder(self, text: str = "") -> None:
@@ -159,13 +153,32 @@ class FloatingWindow(QWidget):
         self._result_label.setText(display)
         self._error_label.setVisible(False)
         self.adjustSize()
-        self._position_near_cursor()
+        self._follow_cursor()
         self.show()
 
-    def _position_near_cursor(self) -> None:
-        if self._xlib_display is not None:
+    def clear_content(self) -> None:
+        self._source_label.setText("原文")
+        self._source_text.clear()
+        self._source_text.setVisible(False)
+        self._direction_label.setText("")
+        self._result_label.setText("翻译结果将在此处显示")
+        self._error_label.clear()
+        self._error_label.setVisible(False)
+
+    def start_tracking(self) -> None:
+        self._track_timer = QTimer(self)
+        self._track_timer.setInterval(50)
+        self._track_timer.timeout.connect(self._follow_cursor)
+        self.show()
+        self._track_timer.start()
+        logger.info("鼠标追踪已启动")
+
+    def _follow_cursor(self) -> None:
+        if self._dragging:
+            return
+        if self._xd is not None:
             try:
-                data = self._xlib_display.screen().root.query_pointer()
+                data = self._xd.screen().root.query_pointer()
                 cx, cy = data.root_x, data.root_y
             except Exception:
                 p = QCursor.pos()
@@ -186,30 +199,16 @@ class FloatingWindow(QWidget):
         if x + self.width() > screen_geom.right():
             x = screen_geom.right() - self.width() - 8
         if y + self.height() > screen_geom.bottom():
-            y = cy - self.height() - 8
+            y = cy - self.height() - 16
         if x < screen_geom.left():
             x = screen_geom.left() + 8
         if y < screen_geom.top():
             y = screen_geom.top() + 8
 
-        self.move(x, y)
-
-    def clear_content(self) -> None:
-        self._source_label.setText("原文")
-        self._source_text.clear()
-        self._source_text.setVisible(False)
-        self._direction_label.setText("")
-        self._result_label.setText("翻译结果将在此处显示")
-        self._error_label.clear()
-        self._error_label.setVisible(False)
-
-    def start_tracking(self) -> None:
-        self._position_near_cursor()
-        self.show()
-        self._mouse_track_timer.start()
-        logger.debug("鼠标追踪已启动，定时器ID=%d，间隔=%dms",
-                     self._mouse_track_timer.timerId(),
-                     self._mouse_track_timer.interval())
+        old_x, old_y = self.x(), self.y()
+        if abs(old_x - x) > 2 or abs(old_y - y) > 2:
+            self.move(x, y)
+            self.raise_()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
