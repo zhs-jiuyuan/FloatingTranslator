@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QPoint, QTimer, Signal
 from PySide6.QtGui import QCursor, QFont, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -34,6 +34,13 @@ class FloatingWindow(QWidget):
         self._mouse_track_timer = QTimer(self)
         self._mouse_track_timer.setInterval(50)
         self._mouse_track_timer.timeout.connect(self._position_near_cursor)
+
+        self._xlib_display = None
+        try:
+            from Xlib import display as xdisplay
+            self._xlib_display = xdisplay.Display()
+        except Exception:
+            pass
 
         self._setup_ui()
         self._setup_window_flags()
@@ -156,19 +163,30 @@ class FloatingWindow(QWidget):
         self.show()
 
     def _position_near_cursor(self) -> None:
-        cursor_global = QCursor.pos()
+        if self._xlib_display is not None:
+            try:
+                data = self._xlib_display.screen().root.query_pointer()
+                cx, cy = data.root_x, data.root_y
+            except Exception:
+                p = QCursor.pos()
+                cx, cy = p.x(), p.y()
+        else:
+            p = QCursor.pos()
+            cx, cy = p.x(), p.y()
+
+        cursor_global = QPoint(cx, cy)
         screen = QApplication.screenAt(cursor_global)
         if screen is None:
             screen = QApplication.primaryScreen()
         screen_geom = screen.availableGeometry()
 
-        x = cursor_global.x() + 16
-        y = cursor_global.y() + 16
+        x = cx + 16
+        y = cy + 16
 
         if x + self.width() > screen_geom.right():
             x = screen_geom.right() - self.width() - 8
         if y + self.height() > screen_geom.bottom():
-            y = cursor_global.y() - self.height() - 8
+            y = cy - self.height() - 8
         if x < screen_geom.left():
             x = screen_geom.left() + 8
         if y < screen_geom.top():
