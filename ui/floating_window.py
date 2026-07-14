@@ -1,4 +1,4 @@
-"""悬浮翻译窗口——无边框、置顶、半透明、自动隐藏。"""
+"""悬浮翻译窗口——无边框、置顶、半透明、鼠标跟随。"""
 from __future__ import annotations
 
 import logging
@@ -177,6 +177,7 @@ class FloatingWindow(QWidget):
         self.move(x, y)
 
     def clear_content(self) -> None:
+        self._source_label.setText("原文")
         self._source_text.clear()
         self._source_text.setVisible(False)
         self._direction_label.setText("")
