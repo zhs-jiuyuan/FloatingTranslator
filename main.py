@@ -4,7 +4,10 @@ from __future__ import annotations
 import os
 import sys
 
-os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
+if sys.platform == "linux":
+    session_type = os.environ.get("XDG_SESSION_TYPE", "").lower()
+    if session_type == "wayland":
+        os.environ.setdefault("QT_QPA_PLATFORM", "xcb")
 
 # 修复 PySide6 shiboken 与 six 库的兼容性问题
 import six  # noqa: F401
@@ -76,6 +79,7 @@ class FloatingTranslatorApp:
         self._floating_window = FloatingWindow(
             opacity=self._config.opacity,
         )
+        self._floating_window.set_auto_hide_seconds(self._config.auto_hide_seconds)
         self._floating_window.close_requested.connect(self._floating_window.hide)
         self._floating_window.start_tracking()
 
@@ -148,8 +152,8 @@ class FloatingTranslatorApp:
             self._config = dialog.get_config()
             self._engine = create_engine(self._config)
             self._connect_engine_signals()
-            self._floating_window._opacity = self._config.opacity
-            self._floating_window.setWindowOpacity(self._config.opacity)
+            self._floating_window.set_opacity(self._config.opacity)
+            self._floating_window.set_auto_hide_seconds(self._config.auto_hide_seconds)
             self._tray_icon.update_engine_check(self._config.engine_type)
             logger.info("配置已更新")
 
@@ -175,7 +179,7 @@ class FloatingTranslatorApp:
 
     def _on_result_ready(self, result: str) -> None:
         self._translating = False
-        self._floating_window._result_label.setText(result)
+        self._floating_window.set_result(result)
 
     def _on_error_occurred(self, error: str) -> None:
         self._translating = False

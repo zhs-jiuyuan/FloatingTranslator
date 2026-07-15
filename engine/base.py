@@ -47,19 +47,12 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
 
     @abstractmethod
     def translate(self, text: str, source_lang: str, target_lang: str) -> None:
-        """在工作线程中执行翻译，完成后通过 result_ready 信号返回结果。
-        若出错则通过 error_occurred 信号返回错误信息。
-
-        Args:
-            text: 待翻译文本
-            source_lang: 源语言代码 (en/zh/ja/ko/auto)
-            target_lang: 目标语言代码
-        """
+        ...
 
     @property
     @abstractmethod
     def engine_name(self) -> str:
-        """引擎显示名称。"""
+        ...
 
     def _emit_result(self, result: str) -> None:
         logger.info("[%s] 翻译成功: %s...", self.engine_name, result[:50])
@@ -68,3 +61,12 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
     def _emit_error(self, error: str) -> None:
         logger.error("[%s] 翻译失败: %s", self.engine_name, error)
         self.error_occurred.emit(error)
+
+    def _detach_previous_thread(self) -> None:
+        if not hasattr(self, '_thread') or self._thread is None:
+            return
+        for signal_name in ('result_ready', 'error_occurred'):
+            try:
+                getattr(self._thread, signal_name).disconnect()
+            except (RuntimeError, TypeError):
+                pass

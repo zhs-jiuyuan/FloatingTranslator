@@ -2,13 +2,13 @@ from unittest.mock import patch, MagicMock
 import pytest
 from PySide6.QtCore import QCoreApplication
 
-_app = QCoreApplication([])
+_app = QCoreApplication.instance() or QCoreApplication([])
 
 from engine.free_online import FreeOnlineEngine
 
 
 class TestFreeOnlineEngine:
-    def test_engine_name(self):
+    def test_engine_name(self, qtbot):
         engine = FreeOnlineEngine()
         assert engine.engine_name == "MyMemory"
 
@@ -24,6 +24,7 @@ class TestFreeOnlineEngine:
             with qtbot.waitSignal(engine.result_ready, timeout=3000) as blocker:
                 engine.translate("Hello world", "en", "zh")
             assert blocker.args[0] == "你好世界"
+        self._cleanup_thread(engine)
 
     def test_translate_emits_error_on_network_failure(self, qtbot):
         engine = FreeOnlineEngine()
@@ -31,6 +32,7 @@ class TestFreeOnlineEngine:
             with qtbot.waitSignal(engine.error_occurred, timeout=3000) as blocker:
                 engine.translate("Hello", "en", "zh")
             assert "Network error" in blocker.args[0]
+        self._cleanup_thread(engine)
 
     def test_translate_emits_error_on_bad_response(self, qtbot):
         engine = FreeOnlineEngine()
@@ -42,3 +44,15 @@ class TestFreeOnlineEngine:
             with qtbot.waitSignal(engine.error_occurred, timeout=3000) as blocker:
                 engine.translate("Hello", "en", "zh")
             assert "500" in blocker.args[0]
+        self._cleanup_thread(engine)
+
+    @staticmethod
+    def _cleanup_thread(engine):
+        if hasattr(engine, '_thread') and engine._thread is not None:
+            try:
+                engine._thread.finished.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            if engine._thread.isRunning():
+                engine._thread.wait(3000)
+            engine._thread = None
