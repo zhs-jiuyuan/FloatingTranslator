@@ -32,6 +32,8 @@ class LocalModelEngine(TranslationEngine):
             self._emit_error("待翻译文本为空")
             return
 
+        self._detach_previous_thread()
+
         self._thread = _LocalTranslateThread(
             model_type=self._model_type,
             model_path=self._model_path,

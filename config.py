@@ -17,7 +17,7 @@ class AppConfig:
     engine_type: str = "free_online"
     hotkey: str = "ctrl+q"
     opacity: float = 0.92
-    auto_hide_seconds: int = 5
+    auto_hide_seconds: int = 0
 
     llm_api_key: str = ""
     llm_api_url: str = "https://api.openai.com/v1"

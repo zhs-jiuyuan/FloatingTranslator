@@ -23,6 +23,8 @@ class FreeOnlineEngine(TranslationEngine):
             self._emit_error("待翻译文本为空")
             return
 
+        self._detach_previous_thread()
+
         lang_pair = f"{source_lang}|{target_lang}"
         if source_lang == "auto":
             lang_pair = f"|{target_lang}"

@@ -34,6 +34,8 @@ class LLMAPIEngine(TranslationEngine):
             self._emit_error("待翻译文本为空")
             return
 
+        self._detach_previous_thread()
+
         self._thread = _LLMTranslateThread(
             api_key=self._api_key,
             api_url=self._api_url,
