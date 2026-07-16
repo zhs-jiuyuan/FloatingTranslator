@@ -11,7 +11,6 @@ class TestAppConfig:
         assert cfg.target_lang == "zh"
         assert cfg.source_lang == "auto"
         assert cfg.engine_type == "free_online"
-        assert cfg.hotkey == "ctrl+q"
         assert cfg.opacity == 0.92
         assert cfg.auto_hide_seconds == 0
         assert cfg.llm_api_key == ""

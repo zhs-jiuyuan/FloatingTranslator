@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QSlider,
     QSpinBox,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -28,6 +29,8 @@ logger = logging.getLogger(__name__)
 
 
 class SettingsDialog(QDialog):
+    opacity_preview = Signal(float)
+
     def __init__(self, config: AppConfig, config_path: str, parent=None) -> None:
         super().__init__(parent)
         self._config = config
@@ -47,11 +50,21 @@ class SettingsDialog(QDialog):
         layout.addWidget(self._create_general_group())
         layout.addWidget(self._create_engine_group())
 
+        # 用 QStackedWidget 承载各引擎的专属设置面板：面板区尺寸恒为最大页，
+        # 切换引擎只翻页、不改变对话框大小，避免窗口反复缩放导致的闪烁。
+        self._engine_stack = QStackedWidget()
         self._llm_group = self._create_llm_group()
-        layout.addWidget(self._llm_group)
-
         self._local_group = self._create_local_group()
-        layout.addWidget(self._local_group)
+        self._engine_pages = {
+            "free_online": self._create_free_page(),
+            "llm_api": self._llm_group,
+            "local_model": self._local_group,
+        }
+        for page in self._engine_pages.values():
+            self._engine_stack.addWidget(page)
+        layout.addWidget(self._engine_stack)
+
+        layout.addStretch(1)
 
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -72,18 +85,18 @@ class SettingsDialog(QDialog):
         self._target_lang_combo.addItems(["zh", "en", "ja", "ko", "fr", "de", "es", "ru"])
         form.addRow("目标语言:", self._target_lang_combo)
 
-        self._hotkey_edit = QLineEdit()
-        form.addRow("快捷键:", self._hotkey_edit)
-
         self._opacity_slider = QSlider(Qt.Orientation.Horizontal)
-        self._opacity_slider.setRange(50, 100)
-        self._opacity_slider.setTickInterval(10)
+        self._opacity_slider.setRange(20, 100)
+        self._opacity_slider.setTickInterval(20)
         self._opacity_label = QLabel("92%")
         opacity_row = QHBoxLayout()
         opacity_row.addWidget(self._opacity_slider)
         opacity_row.addWidget(self._opacity_label)
         self._opacity_slider.valueChanged.connect(
             lambda v: self._opacity_label.setText(f"{v}%")
+        )
+        self._opacity_slider.valueChanged.connect(
+            lambda v: self.opacity_preview.emit(v / 100.0)
         )
         form.addRow("不透明度:", opacity_row)
 
@@ -145,9 +158,17 @@ class SettingsDialog(QDialog):
 
         return group
 
+    def _create_free_page(self) -> QWidget:
+        page = QGroupBox("免费在线引擎")
+        layout = QVBoxLayout(page)
+        label = QLabel("免费在线引擎 (MyMemory) 无需额外配置。")
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        layout.addStretch(1)
+        return page
+
     def _load_config(self) -> None:
         self._target_lang_combo.setCurrentText(self._config.target_lang)
-        self._hotkey_edit.setText(self._config.hotkey)
         self._opacity_slider.setValue(int(self._config.opacity * 100))
         self._hide_seconds_spin.setValue(self._config.auto_hide_seconds)
 
@@ -166,10 +187,10 @@ class SettingsDialog(QDialog):
         self._on_engine_toggled()
 
     def _on_engine_toggled(self) -> None:
-        is_llm = self._engine_radios.get("llm_api", QRadioButton()).isChecked()
-        is_local = self._engine_radios.get("local_model", QRadioButton()).isChecked()
-        self._llm_group.setVisible(is_llm)
-        self._local_group.setVisible(is_local)
+        for key, radio in self._engine_radios.items():
+            if radio.isChecked():
+                self._engine_stack.setCurrentWidget(self._engine_pages[key])
+                break
 
     def _on_save(self) -> None:
         selected_engine = "free_online"
@@ -179,7 +200,6 @@ class SettingsDialog(QDialog):
                 break
 
         self._config.target_lang = self._target_lang_combo.currentText()
-        self._config.hotkey = self._hotkey_edit.text() or "ctrl+q"
         self._config.opacity = self._opacity_slider.value() / 100.0
         self._config.auto_hide_seconds = self._hide_seconds_spin.value()
         self._config.engine_type = selected_engine

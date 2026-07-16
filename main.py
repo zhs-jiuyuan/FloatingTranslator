@@ -148,6 +148,7 @@ class FloatingTranslatorApp:
 
     def _open_settings(self) -> None:
         dialog = SettingsDialog(self._config, self._config_path)
+        dialog.opacity_preview.connect(self._floating_window.set_opacity)
         if dialog.exec() == SettingsDialog.DialogCode.Accepted:
             self._config = dialog.get_config()
             self._engine = create_engine(self._config)

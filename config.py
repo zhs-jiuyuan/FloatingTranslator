@@ -15,7 +15,6 @@ class AppConfig:
     target_lang: str = "zh"
     source_lang: str = "auto"
     engine_type: str = "free_online"
-    hotkey: str = "ctrl+q"
     opacity: float = 0.92
     auto_hide_seconds: int = 0
 
