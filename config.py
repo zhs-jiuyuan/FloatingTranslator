@@ -21,7 +21,9 @@ class AppConfig:
     llm_api_key: str = ""
     llm_api_url: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-3.5-turbo"
-    llm_system_prompt: str = "你是一个专业的翻译助手，请准确、简洁地翻译用户输入的内容。"
+    llm_system_prompt: str = (
+        "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。"
+    )
 
     local_model_type: str = "ollama"
     local_model_path: str = ""

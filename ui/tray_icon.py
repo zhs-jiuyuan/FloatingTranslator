@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 class TrayIcon(QSystemTrayIcon):
     engine_changed = Signal(str)
     settings_requested = Signal()
-    translate_requested = Signal()
 
     def __init__(self, config: AppConfig, parent=None) -> None:
         super().__init__(parent)
@@ -27,7 +26,6 @@ class TrayIcon(QSystemTrayIcon):
         self.setToolTip("FloatingTranslator")
 
         self._setup_menu()
-        self.activated.connect(self._on_activated)
 
     def _create_icon(self) -> QIcon:
         from PySide6.QtGui import QPixmap, QPainter, QColor, QFont
@@ -51,7 +49,7 @@ class TrayIcon(QSystemTrayIcon):
 
         engine_menu = menu.addMenu("切换引擎")
         for key, label in [
-            ("free_online", "免费在线 (MyMemory)"),
+            ("free_online", "免费在线"),
             ("llm_api", "大模型 API"),
             ("local_model", "本地模型"),
         ]:
@@ -63,10 +61,6 @@ class TrayIcon(QSystemTrayIcon):
             self._engine_actions[key] = action
 
         menu.addSeparator()
-
-        translate_action = QAction("手动翻译", self)
-        translate_action.triggered.connect(self.translate_requested.emit)
-        menu.addAction(translate_action)
 
         settings_action = QAction("设置", self)
         settings_action.triggered.connect(self.settings_requested.emit)
@@ -83,10 +77,6 @@ class TrayIcon(QSystemTrayIcon):
     def update_engine_check(self, engine_type: str) -> None:
         for key, action in self._engine_actions.items():
             action.setChecked(key == engine_type)
-
-    def _on_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self.translate_requested.emit()
 
     def show_message(self, title: str, message: str) -> None:
         self.showMessage(title, message, QSystemTrayIcon.MessageIcon.Information, 3000)

@@ -16,7 +16,7 @@ class LLMAPIEngine(TranslationEngine):
         api_key: str = "",
         api_url: str = "https://api.openai.com/v1",
         model: str = "gpt-3.5-turbo",
-        system_prompt: str = "你是一个专业的翻译助手，请准确、简洁地翻译用户输入的内容。",
+        system_prompt: str = "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。",
         parent=None,
     ) -> None:
         super().__init__(parent)

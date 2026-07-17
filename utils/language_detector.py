@@ -4,6 +4,11 @@ from __future__ import annotations
 import logging
 import re
 
+import six  # noqa: F401
+
+if not hasattr(six._SixMetaPathImporter, "_path"):
+    six._SixMetaPathImporter._path = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +32,13 @@ class LanguageDetector:
         if cls.CJK_RE.search(text):
             logger.debug("检测到 CJK 字符，判断为中文")
             return "zh"
+
+        try:
+            text.encode("ascii")
+            logger.debug("纯 ASCII 文本，判断为英文")
+            return "en"
+        except UnicodeEncodeError:
+            pass
 
         try:
             from langdetect import detect

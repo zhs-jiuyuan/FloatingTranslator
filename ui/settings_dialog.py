@@ -113,7 +113,7 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(group)
 
         for key, label in [
-            ("free_online", "免费在线 (MyMemory)"),
+            ("free_online", "免费在线"),
             ("llm_api", "大模型 API (OpenAI/DeepSeek)"),
             ("local_model", "本地模型 (Ollama/llama.cpp)"),
         ]:
@@ -135,8 +135,15 @@ class SettingsDialog(QDialog):
         self._llm_api_url_edit = QLineEdit()
         form.addRow("API URL:", self._llm_api_url_edit)
 
-        self._llm_model_edit = QLineEdit()
-        form.addRow("模型名:", self._llm_model_edit)
+        model_row = QHBoxLayout()
+        self._llm_model_combo = QComboBox()
+        self._llm_model_combo.setEditable(True)
+        self._llm_model_combo.setMinimumWidth(200)
+        model_row.addWidget(self._llm_model_combo, 1)
+        fetch_btn = QPushButton("获取模型")
+        fetch_btn.clicked.connect(self._on_fetch_models)
+        model_row.addWidget(fetch_btn)
+        form.addRow("模型名:", model_row)
 
         self._llm_prompt_edit = QPlainTextEdit()
         self._llm_prompt_edit.setMaximumHeight(100)
@@ -178,7 +185,7 @@ class SettingsDialog(QDialog):
 
         self._llm_api_key_edit.setText(self._config.llm_api_key)
         self._llm_api_url_edit.setText(self._config.llm_api_url)
-        self._llm_model_edit.setText(self._config.llm_model)
+        self._llm_model_combo.setCurrentText(self._config.llm_model)
         self._llm_prompt_edit.setPlainText(self._config.llm_system_prompt)
 
         self._local_type_combo.setCurrentText(self._config.local_model_type)
@@ -191,6 +198,48 @@ class SettingsDialog(QDialog):
             if radio.isChecked():
                 self._engine_stack.setCurrentWidget(self._engine_pages[key])
                 break
+
+    def _on_fetch_models(self) -> None:
+        api_key = self._llm_api_key_edit.text().strip()
+        api_url = self._llm_api_url_edit.text().strip().rstrip("/")
+        if not api_url:
+            QMessageBox.warning(self, "提示", "请先填写 API URL。")
+            return
+
+        try:
+            import requests
+            headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+            resp = requests.get(
+                f"{api_url}/models", headers=headers, timeout=10,
+            )
+            if resp.status_code != 200:
+                QMessageBox.warning(
+                    self, "获取失败",
+                    f"API 返回 HTTP {resp.status_code}\n{resp.text[:200]}",
+                )
+                return
+            data = resp.json()
+            models = sorted(
+                [m["id"] for m in data.get("data", [])],
+                key=str.lower,
+            )
+            if not models:
+                QMessageBox.information(self, "提示", "未获取到模型列表。")
+                return
+            current = self._llm_model_combo.currentText()
+            self._llm_model_combo.clear()
+            self._llm_model_combo.addItems(models)
+            if self._llm_model_combo.findText(current) != -1:
+                self._llm_model_combo.setCurrentText(current)
+            self._llm_model_combo.showPopup()
+            logger.info("获取到 %d 个模型", len(models))
+        except ImportError:
+            QMessageBox.critical(
+                self, "错误", "requests 库未安装，无法获取模型列表。",
+            )
+        except Exception as e:
+            logger.exception("获取模型列表失败")
+            QMessageBox.warning(self, "获取失败", f"无法获取模型列表:\n{e}")
 
     def _on_save(self) -> None:
         selected_engine = "free_online"
@@ -205,7 +254,7 @@ class SettingsDialog(QDialog):
         self._config.engine_type = selected_engine
         self._config.llm_api_key = self._llm_api_key_edit.text()
         self._config.llm_api_url = self._llm_api_url_edit.text()
-        self._config.llm_model = self._llm_model_edit.text()
+        self._config.llm_model = self._llm_model_combo.currentText()
         self._config.llm_system_prompt = self._llm_prompt_edit.toPlainText()
         self._config.local_model_type = self._local_type_combo.currentText()
         self._config.local_model_path = self._local_path_edit.text()

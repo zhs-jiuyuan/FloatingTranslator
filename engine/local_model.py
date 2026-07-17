@@ -15,7 +15,7 @@ class LocalModelEngine(TranslationEngine):
         self,
         model_type: str = "ollama",
         model_path: str = "",
-        system_prompt: str = "你是一个专业的翻译助手，请准确、简洁地翻译用户输入的内容。",
+        system_prompt: str = "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。",
         parent=None,
     ) -> None:
         super().__init__(parent)

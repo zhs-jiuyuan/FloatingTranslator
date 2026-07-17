@@ -20,3 +20,11 @@ class TestLanguageDetector:
     def test_detect_mixed_cjk_defaults_to_zh(self):
         result = LanguageDetector.detect("hello 你好 world")
         assert result == "zh"
+
+    def test_french_with_accents_not_misdetected_as_en(self):
+        result = LanguageDetector.detect("français déjà très bien")
+        assert result != "en"
+
+    def test_ascii_english_not_misdetected_as_fr(self):
+        result = LanguageDetector.detect("click here")
+        assert result == "en"

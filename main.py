@@ -86,7 +86,6 @@ class FloatingTranslatorApp:
         self._tray_icon = TrayIcon(self._config)
         self._tray_icon.engine_changed.connect(self._on_engine_changed)
         self._tray_icon.settings_requested.connect(self._open_settings)
-        self._tray_icon.translate_requested.connect(self._on_translate_triggered)
         self._tray_icon.show()
 
         self._connect_engine_signals()
@@ -157,9 +156,6 @@ class FloatingTranslatorApp:
             self._floating_window.set_auto_hide_seconds(self._config.auto_hide_seconds)
             self._tray_icon.update_engine_check(self._config.engine_type)
             logger.info("配置已更新")
-
-    def _on_translate_triggered(self) -> None:
-        self._poll_clipboard()
 
     def _translate(self, text: str) -> None:
         self._translating = True

@@ -223,6 +223,9 @@ debug/
 # Development notes
 develop.md
 
+# Documentation (not code)
+docs/
+
 # Superpowers brainstorming artifacts
 .superpowers/
 
