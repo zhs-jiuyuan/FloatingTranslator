@@ -9,6 +9,10 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SYSTEM_PROMPT = (
+    "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。"
+)
+
 
 @dataclass
 class AppConfig:
@@ -21,12 +25,11 @@ class AppConfig:
     llm_api_key: str = ""
     llm_api_url: str = "https://api.openai.com/v1"
     llm_model: str = "gpt-3.5-turbo"
-    llm_system_prompt: str = (
-        "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。"
-    )
+    llm_system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
     local_model_type: str = "llama_cpp"
     local_model_path: str = ""
+    local_system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

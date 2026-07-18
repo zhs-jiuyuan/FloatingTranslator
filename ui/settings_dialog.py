@@ -170,6 +170,10 @@ class SettingsDialog(QDialog):
         self._local_model_combo = QComboBox()
         form.addRow("选择模型:", self._local_model_combo)
 
+        self._local_prompt_edit = QPlainTextEdit()
+        self._local_prompt_edit.setMaximumHeight(100)
+        form.addRow("系统提示词:", self._local_prompt_edit)
+
         return group
 
     def _on_browse_model_dir(self) -> None:
@@ -232,6 +236,7 @@ class SettingsDialog(QDialog):
             )
             if idx != -1:
                 self._local_model_combo.setCurrentIndex(idx)
+        self._local_prompt_edit.setPlainText(self._config.local_system_prompt)
 
         self._on_engine_toggled()
 
@@ -305,6 +310,7 @@ class SettingsDialog(QDialog):
             )
         else:
             self._config.local_model_path = ""
+        self._config.local_system_prompt = self._local_prompt_edit.toPlainText()
 
         try:
             ConfigManager.save(self._config, self._config_path)

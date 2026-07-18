@@ -69,3 +69,17 @@ class TestLocalModelLoadSave:
         dlg._scan_gguf_models()
         dlg._on_save()
         assert cfg.local_model_path == ""
+
+    def test_local_prompt_load_and_save_independent(
+        self, qtbot, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
+        cfg = AppConfig(
+            llm_system_prompt="API提示词", local_system_prompt="本地提示词"
+        )
+        dlg = make_dialog(qtbot, tmp_path, cfg)
+        assert dlg._local_prompt_edit.toPlainText() == "本地提示词"
+        dlg._local_prompt_edit.setPlainText("新本地提示词")
+        dlg._on_save()
+        assert cfg.local_system_prompt == "新本地提示词"
+        assert cfg.llm_system_prompt == "API提示词"

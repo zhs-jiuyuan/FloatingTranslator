@@ -60,7 +60,7 @@ def create_engine(config: AppConfig) -> TranslationEngine:
         return LocalModelEngine(
             model_type=config.local_model_type,
             model_path=config.local_model_path,
-            system_prompt=config.llm_system_prompt,
+            system_prompt=config.local_system_prompt,
         )
     else:
         return FreeOnlineEngine()

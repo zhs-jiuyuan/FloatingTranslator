@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 import pytest
-from config import AppConfig, ConfigManager
+from config import AppConfig, ConfigManager, DEFAULT_SYSTEM_PROMPT
 
 
 class TestAppConfig:
@@ -18,6 +18,13 @@ class TestAppConfig:
         assert cfg.llm_model == "gpt-3.5-turbo"
         assert cfg.local_model_type == "llama_cpp"
         assert cfg.local_model_path == ""
+        assert cfg.llm_system_prompt == DEFAULT_SYSTEM_PROMPT
+        assert cfg.local_system_prompt == DEFAULT_SYSTEM_PROMPT
+
+    def test_prompts_independent(self):
+        cfg = AppConfig(llm_system_prompt="A", local_system_prompt="B")
+        assert cfg.llm_system_prompt == "A"
+        assert cfg.local_system_prompt == "B"
 
     def test_custom_values(self):
         cfg = AppConfig(
