@@ -218,9 +218,11 @@ class SettingsDialog(QDialog):
         self._llm_prompt_edit.setPlainText(self._config.llm_system_prompt)
 
         if self._config.local_model_path:
-            self._local_dir_edit.setText(
-                os.path.dirname(self._config.local_model_path)
-            )
+            saved = os.path.expanduser(self._config.local_model_path)
+            if os.path.isdir(saved):
+                self._local_dir_edit.setText(saved)
+            else:
+                self._local_dir_edit.setText(os.path.dirname(saved))
         else:
             self._local_dir_edit.setText(os.path.expanduser("~/model"))
         self._scan_gguf_models()

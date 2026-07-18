@@ -43,6 +43,13 @@ class TestLocalModelLoadSave:
         assert dlg._local_dir_edit.text() == str(tmp_path)
         assert dlg._local_model_combo.currentText() == "qwen.gguf"
 
+    def test_load_config_with_legacy_dir_value(self, qtbot, tmp_path):
+        (tmp_path / "m.gguf").touch()
+        cfg = AppConfig(local_model_path=str(tmp_path))
+        dlg = make_dialog(qtbot, tmp_path, cfg)
+        assert dlg._local_dir_edit.text() == str(tmp_path)
+        assert dlg._local_model_combo.currentText() == "m.gguf"
+
     def test_save_writes_absolute_path(self, qtbot, tmp_path, monkeypatch):
         monkeypatch.setattr(QMessageBox, "information", lambda *a, **k: None)
         model = tmp_path / "qwen.gguf"
