@@ -115,7 +115,7 @@ class SettingsDialog(QDialog):
         for key, label in [
             ("free_online", "免费在线"),
             ("llm_api", "大模型 API (OpenAI/DeepSeek)"),
-            ("local_model", "本地模型 (Ollama/llama.cpp)"),
+            ("local_model", "本地模型 (llama.cpp)"),
         ]:
             radio = QRadioButton(label)
             radio.toggled.connect(self._on_engine_toggled)
@@ -156,11 +156,11 @@ class SettingsDialog(QDialog):
         form = QFormLayout(group)
 
         self._local_type_combo = QComboBox()
-        self._local_type_combo.addItems(["ollama", "llama_cpp"])
+        self._local_type_combo.addItems(["llama_cpp"])
         form.addRow("模型类型:", self._local_type_combo)
 
         self._local_path_edit = QLineEdit()
-        self._local_path_edit.setPlaceholderText("Ollama 模型名 或 GGUF 文件路径")
+        self._local_path_edit.setPlaceholderText("GGUF 模型文件路径")
         form.addRow("模型名称/路径:", self._local_path_edit)
 
         return group

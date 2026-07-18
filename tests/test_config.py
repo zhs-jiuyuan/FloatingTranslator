@@ -16,7 +16,7 @@ class TestAppConfig:
         assert cfg.llm_api_key == ""
         assert cfg.llm_api_url == "https://api.openai.com/v1"
         assert cfg.llm_model == "gpt-3.5-turbo"
-        assert cfg.local_model_type == "ollama"
+        assert cfg.local_model_type == "llama_cpp"
         assert cfg.local_model_path == ""
 
     def test_custom_values(self):

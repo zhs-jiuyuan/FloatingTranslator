@@ -25,7 +25,7 @@ class AppConfig:
         "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。"
     )
 
-    local_model_type: str = "ollama"
+    local_model_type: str = "llama_cpp"
     local_model_path: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,7 +56,9 @@ class ConfigManager:
 
     @staticmethod
     def save(config: AppConfig, path: str) -> None:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        parent = os.path.dirname(path)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(config.to_dict(), f, indent=2, ensure_ascii=False)
         logger.info("配置已保存到 %s", path)
