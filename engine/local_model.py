@@ -1,7 +1,9 @@
-"""本地模型翻译引擎——支持 Ollama 和 llama-cpp-python，同样支持角色设定。"""
+"""本地模型翻译引擎——基于 llama-cpp-python 加载 GGUF 模型，同样支持角色设定。"""
 from __future__ import annotations
 
 import logging
+import os
+import threading
 
 from PySide6.QtCore import QThread, Signal
 
@@ -9,11 +11,28 @@ from engine.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
+_llm_lock = threading.Lock()
+_llm_cache: dict[str, object] = {}
+
+
+def _get_llama(model_path: str):
+    path = os.path.expanduser(model_path)
+    if path not in _llm_cache:
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f"模型文件不存在: {path}")
+        from llama_cpp import Llama
+
+        logger.info("加载 GGUF 模型: %s", path)
+        _llm_cache[path] = Llama(
+            model_path=path, n_ctx=2048, verbose=False
+        )
+    return _llm_cache[path]
+
 
 class LocalModelEngine(TranslationEngine):
     def __init__(
         self,
-        model_type: str = "ollama",
+        model_type: str = "llama_cpp",
         model_path: str = "",
         system_prompt: str = "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。",
         parent=None,
@@ -72,9 +91,7 @@ class _LocalTranslateThread(QThread):
 
     def run(self) -> None:
         try:
-            if self._model_type == "ollama":
-                self._run_ollama()
-            elif self._model_type == "llama_cpp":
+            if self._model_type == "llama_cpp":
                 self._run_llama_cpp()
             else:
                 self.error_occurred.emit(f"不支持的本地模型类型: {self._model_type}")
@@ -82,40 +99,25 @@ class _LocalTranslateThread(QThread):
             logger.exception("本地模型翻译异常")
             self.error_occurred.emit(f"本地模型翻译失败: {e}")
 
-    def _run_ollama(self) -> None:
-        try:
-            import ollama
-
-            prompt = (
-                f"{self._system_prompt}\n\n"
-                f"将以下{self._source_lang}文本翻译成{self._target_lang}：\n\n{self._text}"
-            )
-
-            response = ollama.chat(
-                model=self._model_path,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            result = response["message"]["content"]
-            if result:
-                self.result_ready.emit(result.strip())
-            else:
-                self.error_occurred.emit("Ollama 未返回翻译结果")
-        except ImportError:
-            self.error_occurred.emit("ollama 库未安装，请执行 pip install ollama")
-        except Exception as e:
-            self.error_occurred.emit(f"Ollama 翻译失败: {e}")
-
     def _run_llama_cpp(self) -> None:
         try:
-            from llama_cpp import Llama
-
-            llm = Llama(model_path=self._model_path, n_ctx=2048, verbose=False)
-            prompt = (
-                f"{self._system_prompt}\n\n"
-                f"将以下{self._source_lang}文本翻译成{self._target_lang}：\n\n{self._text}"
-            )
-            output = llm(prompt, max_tokens=512, temperature=0.3)
-            result = output["choices"][0]["text"].strip()
+            with _llm_lock:
+                llm = _get_llama(self._model_path)
+                output = llm.create_chat_completion(
+                    messages=[
+                        {"role": "system", "content": self._system_prompt},
+                        {
+                            "role": "user",
+                            "content": (
+                                f"将以下{self._source_lang}文本翻译成"
+                                f"{self._target_lang}：\n\n{self._text}"
+                            ),
+                        },
+                    ],
+                    max_tokens=512,
+                    temperature=0.3,
+                )
+            result = output["choices"][0]["message"]["content"].strip()
             if result:
                 self.result_ready.emit(result)
             else:
