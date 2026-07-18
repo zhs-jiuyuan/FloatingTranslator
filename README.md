@@ -56,8 +56,8 @@ modelscope download --model Qwen/Qwen2.5-1.5B-Instruct-GGUF --include '*q4_k_m*'
 
 **3. 配置**
 
-设置界面选择"本地模型 (llama.cpp)"，模型路径填 `.gguf` 文件的完整路径，
-例如 `~/model/qwen2.5-1.5b-instruct-q4_k_m.gguf`。
+设置界面选择"本地模型 (llama.cpp)"，"模型目录"填 GGUF 所在目录（默认 `~/model`），
+在"选择模型"下拉框中选取要用的模型文件。
 首次翻译会加载模型（约 10 秒），之后常驻内存无需重复加载。
 
 ## 配置文件

@@ -1,8 +1,5 @@
 from unittest.mock import patch, MagicMock
 import pytest
-from PySide6.QtCore import QCoreApplication
-
-_app = QCoreApplication.instance() or QCoreApplication([])
 
 from engine.free_online import FreeOnlineEngine
 

@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import logging
+import os
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -155,15 +157,42 @@ class SettingsDialog(QDialog):
         group = QGroupBox("本地模型设置")
         form = QFormLayout(group)
 
-        self._local_type_combo = QComboBox()
-        self._local_type_combo.addItems(["llama_cpp"])
-        form.addRow("模型类型:", self._local_type_combo)
+        dir_row = QHBoxLayout()
+        self._local_dir_edit = QLineEdit()
+        self._local_dir_edit.setPlaceholderText("存放 GGUF 模型的目录")
+        self._local_dir_edit.editingFinished.connect(self._scan_gguf_models)
+        dir_row.addWidget(self._local_dir_edit, 1)
+        browse_btn = QPushButton("浏览…")
+        browse_btn.clicked.connect(self._on_browse_model_dir)
+        dir_row.addWidget(browse_btn)
+        form.addRow("模型目录:", dir_row)
 
-        self._local_path_edit = QLineEdit()
-        self._local_path_edit.setPlaceholderText("GGUF 模型文件路径")
-        form.addRow("模型名称/路径:", self._local_path_edit)
+        self._local_model_combo = QComboBox()
+        form.addRow("选择模型:", self._local_model_combo)
 
         return group
+
+    def _on_browse_model_dir(self) -> None:
+        start_dir = os.path.expanduser(self._local_dir_edit.text().strip() or "~")
+        path = QFileDialog.getExistingDirectory(self, "选择模型目录", start_dir)
+        if path:
+            self._local_dir_edit.setText(path)
+            self._scan_gguf_models()
+
+    def _scan_gguf_models(self) -> None:
+        directory = os.path.expanduser(self._local_dir_edit.text().strip())
+        self._local_model_combo.clear()
+        files: list[str] = []
+        if directory and os.path.isdir(directory):
+            files = sorted(
+                f for f in os.listdir(directory) if f.lower().endswith(".gguf")
+            )
+        if files:
+            self._local_model_combo.addItems(files)
+            self._local_model_combo.setEnabled(True)
+        else:
+            self._local_model_combo.addItem("未找到 GGUF 文件")
+            self._local_model_combo.setEnabled(False)
 
     def _create_free_page(self) -> QWidget:
         page = QGroupBox("免费在线引擎")
@@ -188,8 +217,19 @@ class SettingsDialog(QDialog):
         self._llm_model_combo.setCurrentText(self._config.llm_model)
         self._llm_prompt_edit.setPlainText(self._config.llm_system_prompt)
 
-        self._local_type_combo.setCurrentText(self._config.local_model_type)
-        self._local_path_edit.setText(self._config.local_model_path)
+        if self._config.local_model_path:
+            self._local_dir_edit.setText(
+                os.path.dirname(self._config.local_model_path)
+            )
+        else:
+            self._local_dir_edit.setText(os.path.expanduser("~/model"))
+        self._scan_gguf_models()
+        if self._config.local_model_path:
+            idx = self._local_model_combo.findText(
+                os.path.basename(self._config.local_model_path)
+            )
+            if idx != -1:
+                self._local_model_combo.setCurrentIndex(idx)
 
         self._on_engine_toggled()
 
@@ -256,8 +296,13 @@ class SettingsDialog(QDialog):
         self._config.llm_api_url = self._llm_api_url_edit.text()
         self._config.llm_model = self._llm_model_combo.currentText()
         self._config.llm_system_prompt = self._llm_prompt_edit.toPlainText()
-        self._config.local_model_type = self._local_type_combo.currentText()
-        self._config.local_model_path = self._local_path_edit.text()
+        if self._local_model_combo.isEnabled():
+            self._config.local_model_path = os.path.join(
+                os.path.expanduser(self._local_dir_edit.text().strip()),
+                self._local_model_combo.currentText(),
+            )
+        else:
+            self._config.local_model_path = ""
 
         try:
             ConfigManager.save(self._config, self._config_path)
