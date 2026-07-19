@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, ABCMeta, abstractmethod
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._thread = None
+        self._thread: QThread | None = None
 
     @abstractmethod
     def translate(self, text: str, source_lang: str, target_lang: str) -> None:
@@ -43,6 +43,17 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
             return
         try:
             self._thread.result_ready.disconnect()
+        except (RuntimeError, TypeError):
+            logger.debug("result_ready 信号未连接，跳过断开")
+        try:
             self._thread.error_occurred.disconnect()
-        except RuntimeError:
-            pass
+        except (RuntimeError, TypeError):
+            logger.debug("error_occurred 信号未连接，跳过断开")
+        try:
+            self._thread.finished.disconnect()
+        except (RuntimeError, TypeError):
+            logger.debug("finished 信号未连接，跳过断开")
+        if self._thread.isRunning():
+            self._thread.quit()
+            if not self._thread.wait(3000):
+                logger.warning("上一翻译线程未能在3秒内退出")
