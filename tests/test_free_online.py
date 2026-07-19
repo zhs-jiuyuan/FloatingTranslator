@@ -46,10 +46,5 @@ class TestFreeOnlineEngine:
     @staticmethod
     def _cleanup_thread(engine):
         if hasattr(engine, "_thread") and engine._thread is not None:
-            try:
-                engine._thread.finished.disconnect()
-            except (RuntimeError, TypeError):
-                pass
-            if engine._thread.isRunning():
-                engine._thread.wait(3000)
+            engine._detach_previous_thread()
             engine._thread = None

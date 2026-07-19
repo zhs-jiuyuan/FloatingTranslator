@@ -5,10 +5,8 @@ import logging
 import os
 from functools import lru_cache
 
-from PySide6.QtCore import QThread, Signal
-
+from engine.base import TranslationEngine, _TranslateWorker
 from config import DEFAULT_SYSTEM_PROMPT
-from engine.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -39,30 +37,17 @@ class LocalModelEngine(TranslationEngine):
     def engine_name(self) -> str:
         return f"Local (llama_cpp:{self._model_path})"
 
-    def translate(self, text: str, source_lang: str, target_lang: str) -> None:
-        if not text or not text.strip():
-            self._emit_error("待翻译文本为空")
-            return
-
-        self._detach_previous_thread()
-
-        self._thread = _LocalTranslateThread(
+    def _create_worker(self, text: str, source_lang: str, target_lang: str) -> _TranslateWorker:
+        return _LocalTranslateThread(
             model_path=self._model_path,
             system_prompt=self._system_prompt,
             text=text,
             source_lang=source_lang,
             target_lang=target_lang,
         )
-        self._thread.result_ready.connect(self._emit_result)
-        self._thread.error_occurred.connect(self._emit_error)
-        self._thread.finished.connect(self._thread.deleteLater)
-        self._thread.start()
 
 
-class _LocalTranslateThread(QThread):
-    result_ready = Signal(str)
-    error_occurred = Signal(str)
-
+class _LocalTranslateThread(_TranslateWorker):
     def __init__(
         self,
         model_path: str,
@@ -85,7 +70,6 @@ class _LocalTranslateThread(QThread):
         except Exception as e:
             logger.exception("本地模型翻译异常")
             self.error_occurred.emit(f"本地模型翻译失败: {e}")
-
 
     def _run_llama_cpp(self) -> None:
         try:

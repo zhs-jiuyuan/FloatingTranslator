@@ -4,9 +4,8 @@ from __future__ import annotations
 import logging
 
 import requests
-from PySide6.QtCore import QThread, Signal
 
-from engine.base import TranslationEngine
+from engine.base import TranslationEngine, _TranslateWorker
 
 logger = logging.getLogger(__name__)
 
@@ -18,30 +17,16 @@ class FreeOnlineEngine(TranslationEngine):
     def engine_name(self) -> str:
         return "MyMemory"
 
-    def translate(self, text: str, source_lang: str, target_lang: str) -> None:
-        if not text or not text.strip():
-            self._emit_error("待翻译文本为空")
-            return
-
-        self._detach_previous_thread()
-
+    def _create_worker(self, text: str, source_lang: str, target_lang: str) -> _TranslateWorker:
         lang_pair = f"{source_lang}|{target_lang}"
-
-        self._thread = _TranslateThread(
+        return _TranslateThread(
             url=MYMEMORY_URL,
             text=text,
             lang_pair=lang_pair,
         )
-        self._thread.result_ready.connect(self._emit_result)
-        self._thread.error_occurred.connect(self._emit_error)
-        self._thread.finished.connect(self._thread.deleteLater)
-        self._thread.start()
 
 
-class _TranslateThread(QThread):
-    result_ready = Signal(str)
-    error_occurred = Signal(str)
-
+class _TranslateThread(_TranslateWorker):
     def __init__(
         self, url: str, text: str, lang_pair: str, parent=None
     ) -> None:

@@ -13,6 +13,11 @@ class _QABCMeta(ABCMeta, type(QObject)):
     pass
 
 
+class _TranslateWorker(QThread):
+    result_ready = Signal(str)
+    error_occurred = Signal(str)
+
+
 class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
     result_ready = Signal(str)
     error_occurred = Signal(str)
@@ -22,8 +27,20 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
         self._thread: QThread | None = None
 
     @abstractmethod
-    def translate(self, text: str, source_lang: str, target_lang: str) -> None:
+    def _create_worker(self, text: str, source_lang: str, target_lang: str) -> _TranslateWorker:
         ...
+
+    def translate(self, text: str, source_lang: str, target_lang: str) -> None:
+        if not text or not text.strip():
+            self._emit_error("待翻译文本为空")
+            return
+        self._detach_previous_thread()
+        worker = self._create_worker(text, source_lang, target_lang)
+        worker.result_ready.connect(self._emit_result)
+        worker.error_occurred.connect(self._emit_error)
+        worker.finished.connect(worker.deleteLater)
+        self._thread = worker
+        worker.start()
 
     @property
     @abstractmethod
@@ -53,8 +70,14 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
             self._thread.finished.disconnect()
         except (RuntimeError, TypeError):
             logger.debug("finished 信号未连接，跳过断开")
-        if self._thread.isRunning():
-            self._thread.quit()
-            if not self._thread.wait(3000):
-                logger.warning("上一翻译线程未能在3秒内退出")
-        self._thread.deleteLater()
+        try:
+            if self._thread.isRunning():
+                self._thread.quit()
+                if not self._thread.wait(3000):
+                    logger.warning("上一翻译线程未能在3秒内退出")
+        except RuntimeError:
+            logger.debug("线程 C++ 对象已释放，跳过清理")
+        try:
+            self._thread.deleteLater()
+        except RuntimeError:
+            logger.debug("deleteLater 失败，C++ 对象已释放")
