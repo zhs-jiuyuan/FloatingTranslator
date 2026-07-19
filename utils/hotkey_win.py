@@ -17,6 +17,16 @@ logger = logging.getLogger(__name__)
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
+# 设置函数参数类型，防止 64 位系统上指针值溢出
+user32.SetWindowsHookExW.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint]
+user32.SetWindowsHookExW.restype = ctypes.c_void_p
+user32.CallNextHookEx.argtypes = [ctypes.c_void_p, ctypes.c_int, wintypes.WPARAM, wintypes.LPARAM]
+user32.CallNextHookEx.restype = ctypes.c_long
+user32.GetMessageW.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
+user32.GetMessageW.restype = ctypes.c_long
+user32.PostThreadMessageW.argtypes = [ctypes.c_uint, ctypes.c_uint, wintypes.WPARAM, wintypes.LPARAM]
+user32.PostThreadMessageW.restype = ctypes.c_long
+
 WH_MOUSE_LL = 14
 WM_LBUTTONDOWN = 0x0201
 WM_LBUTTONUP = 0x0202
@@ -63,8 +73,8 @@ def _capture_selection() -> str:
             text = win32clipboard.GetClipboardData(win32con.CF_UNICODETEXT)
         except Exception:
             pass
-        win32clipboard.EmptyClipboard()
         if saved:
+            win32clipboard.EmptyClipboard()
             try:
                 win32clipboard.SetClipboardText(saved, win32con.CF_UNICODETEXT)
             except Exception:
@@ -73,6 +83,8 @@ def _capture_selection() -> str:
     except Exception:
         pass
 
+    if text == saved:
+        return ""
     return text.strip() if text else ""
 
 
@@ -87,19 +99,22 @@ class WinSelectionMonitor(QThread):
         super().__init__(parent)
         self._hook_id: int | None = None
         self._callback = None
+        self._thread_id = 0
         self._start_x = 0
         self._start_y = 0
         self._button_down = False
 
     def run(self) -> None:
         self._callback = HOOKPROC(self._hook_proc)
-        module = kernel32.GetModuleHandleW(None)
+        self._thread_id = kernel32.GetCurrentThreadId()
+        # WH_MOUSE_LL 要求 dwThreadId=0 时 hmod 必须为 NULL
         self._hook_id = user32.SetWindowsHookExW(
-            WH_MOUSE_LL, self._callback, module, 0
+            WH_MOUSE_LL, self._callback, None, 0
         )
         if not self._hook_id:
-            logger.error("SetWindowsHookEx 失败")
+            logger.error("SetWindowsHookExW 失败 (错误码: %d)", kernel32.GetLastError())
             return
+        logger.info("Windows 鼠标钩子安装成功")
 
         msg = wintypes.MSG()
         while True:
@@ -115,7 +130,7 @@ class WinSelectionMonitor(QThread):
     def stop(self) -> None:
         if self._hook_id:
             user32.PostThreadMessageW(
-                kernel32.GetCurrentThreadId(), 0x0012, 0, 0  # WM_QUIT
+                self._thread_id, 0x0012, 0, 0  # WM_QUIT
             )
 
     def _hook_proc(self, nCode: int, wParam: int, lParam: int) -> int:

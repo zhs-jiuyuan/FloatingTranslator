@@ -75,6 +75,7 @@ class FloatingTranslatorApp:
         self._engine = create_engine(self._config)
         self._last_clipboard = ""
         self._translating = False
+        QApplication.clipboard().clear()
 
         self._floating_window = FloatingWindow(
             opacity=self._config.opacity,
@@ -104,6 +105,7 @@ class FloatingTranslatorApp:
         self._selection_monitor = WinSelectionMonitor()
         self._selection_monitor.text_selected.connect(self._on_selection)
         self._selection_monitor.start()
+        QApplication.instance().aboutToQuit.connect(self._selection_monitor.stop)
         logger.info("Windows 鼠标钩子已启动")
 
     def _disconnect_engine(self) -> None:
