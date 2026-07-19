@@ -78,6 +78,16 @@ def get_cursor_pos() -> tuple[int, int]:
     return p.x(), p.y()
 
 
+def close_xdisplay() -> None:
+    global _xd
+    if _xd is not None:
+        try:
+            _xd.close()
+        except Exception:
+            pass
+        _xd = None
+
+
 # --- Selection Monitor ---
 
 class SelectionMonitor(QObject):
@@ -89,6 +99,12 @@ class SelectionMonitor(QObject):
 
     def stop(self) -> None:
         raise NotImplementedError
+
+    def set_translating(self, value: bool) -> None:
+        pass
+
+    def reset_last(self) -> None:
+        pass
 
 
 class _LinuxClipboardMonitor(SelectionMonitor):
@@ -123,6 +139,7 @@ class _LinuxClipboardMonitor(SelectionMonitor):
         if not text:
             if self._last_clipboard:
                 self._last_clipboard = ""
+                self.text_selected.emit("")
             return
         if text != self._last_clipboard:
             logger.debug("检测到选区变化: %s...", text[:80])
@@ -133,8 +150,12 @@ class _LinuxClipboardMonitor(SelectionMonitor):
 class _WinMouseHookMonitor(SelectionMonitor):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self._translating = False
         self._thread = _WinHookThread()
-        self._thread.text_selected.connect(self.text_selected.emit)
+        self._thread.text_selected.connect(self._on_text_selected)
+
+    def set_translating(self, value: bool) -> None:
+        self._translating = value
 
     def start(self) -> None:
         self._thread.start()
@@ -143,6 +164,10 @@ class _WinMouseHookMonitor(SelectionMonitor):
 
     def stop(self) -> None:
         self._thread.stop()
+
+    def _on_text_selected(self, text: str) -> None:
+        if not self._translating:
+            self.text_selected.emit(text)
 
 
 class _WinHookThread(QThread):

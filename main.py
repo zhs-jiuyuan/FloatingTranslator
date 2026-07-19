@@ -108,12 +108,14 @@ class FloatingTranslatorApp:
         self._disconnect_engine()
         self._engine = create_engine(self._config)
         self._connect_engine()
-        if hasattr(self._monitor, "set_translating"):
-            self._monitor.set_translating(False)
-        if hasattr(self._monitor, "reset_last"):
-            self._monitor.reset_last()
+        self._monitor.set_translating(False)
+        self._monitor.reset_last()
 
     def _on_selection(self, text: str) -> None:
+        if not text:
+            self._floating_window.clear_content()
+            return
+        self._monitor.set_translating(True)
         self._translate(text)
 
     def _on_engine_changed(self, engine_type: str) -> None:
@@ -137,8 +139,7 @@ class FloatingTranslatorApp:
             logger.info("配置已更新")
 
     def _translate(self, text: str) -> None:
-        if hasattr(self._monitor, "set_translating"):
-            self._monitor.set_translating(True)
+        self._monitor.set_translating(True)
         source_lang = LanguageDetector.detect(text)
         target_lang = self._config.target_lang
 
@@ -156,13 +157,11 @@ class FloatingTranslatorApp:
 
     def _on_result_ready(self, result: str) -> None:
         self._floating_window.set_result(result)
-        if hasattr(self._monitor, "set_translating"):
-            self._monitor.set_translating(False)
+        self._monitor.set_translating(False)
 
     def _on_error_occurred(self, error: str) -> None:
         self._floating_window.show_error(error)
-        if hasattr(self._monitor, "set_translating"):
-            self._monitor.set_translating(False)
+        self._monitor.set_translating(False)
 
 
 def main() -> None:

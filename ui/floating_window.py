@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from utils.platform import get_cursor_pos
+from utils.platform import get_cursor_pos, close_xdisplay
 
 logger = logging.getLogger(__name__)
 
@@ -266,4 +266,5 @@ class FloatingWindow(QWidget):
         self._reset_auto_hide()
 
     def closeEvent(self, event) -> None:
+        close_xdisplay()
         super().closeEvent(event)
