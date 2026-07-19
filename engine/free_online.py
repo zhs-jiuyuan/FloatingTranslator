@@ -25,7 +25,7 @@ class FreeOnlineEngine(TranslationEngine):
 
         self._detach_previous_thread()
 
-        lang_pair = f"|{target_lang}" if source_lang == "auto" else f"{source_lang}|{target_lang}"
+        lang_pair = f"{source_lang}|{target_lang}"
 
         self._thread = _TranslateThread(
             url=MYMEMORY_URL,

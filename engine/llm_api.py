@@ -5,6 +5,7 @@ import logging
 
 from PySide6.QtCore import QThread, Signal
 
+from config import DEFAULT_SYSTEM_PROMPT
 from engine.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class LLMAPIEngine(TranslationEngine):
         api_key: str = "",
         api_url: str = "https://api.openai.com/v1",
         model: str = "gpt-3.5-turbo",
-        system_prompt: str = "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。",
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         parent=None,
     ) -> None:
         super().__init__(parent)

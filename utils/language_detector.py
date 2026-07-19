@@ -4,11 +4,6 @@ from __future__ import annotations
 import logging
 import re
 
-import six  # noqa: F401
-
-if not hasattr(six._SixMetaPathImporter, "_path"):
-    six._SixMetaPathImporter._path = None
-
 logger = logging.getLogger(__name__)
 
 

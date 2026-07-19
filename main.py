@@ -58,7 +58,6 @@ def create_engine(config: AppConfig) -> TranslationEngine:
         )
     elif config.engine_type == "local_model":
         return LocalModelEngine(
-            model_type=config.local_model_type,
             model_path=config.local_model_path,
             system_prompt=config.local_system_prompt,
         )

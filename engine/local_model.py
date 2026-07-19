@@ -7,6 +7,7 @@ from functools import lru_cache
 
 from PySide6.QtCore import QThread, Signal
 
+from config import DEFAULT_SYSTEM_PROMPT
 from engine.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
@@ -26,19 +27,17 @@ def _get_llama(model_path: str):
 class LocalModelEngine(TranslationEngine):
     def __init__(
         self,
-        model_type: str = "llama_cpp",
         model_path: str = "",
-        system_prompt: str = "你是一个专业的翻译助手，直接输出翻译结果，不要解释、不要补充、不要聊天。",
+        system_prompt: str = DEFAULT_SYSTEM_PROMPT,
         parent=None,
     ) -> None:
         super().__init__(parent)
-        self._model_type = model_type
         self._model_path = model_path
         self._system_prompt = system_prompt
 
     @property
     def engine_name(self) -> str:
-        return f"Local ({self._model_type}:{self._model_path})"
+        return f"Local (llama_cpp:{self._model_path})"
 
     def translate(self, text: str, source_lang: str, target_lang: str) -> None:
         if not text or not text.strip():
@@ -48,7 +47,6 @@ class LocalModelEngine(TranslationEngine):
         self._detach_previous_thread()
 
         self._thread = _LocalTranslateThread(
-            model_type=self._model_type,
             model_path=self._model_path,
             system_prompt=self._system_prompt,
             text=text,
@@ -67,7 +65,6 @@ class _LocalTranslateThread(QThread):
 
     def __init__(
         self,
-        model_type: str,
         model_path: str,
         system_prompt: str,
         text: str,
@@ -76,7 +73,6 @@ class _LocalTranslateThread(QThread):
         parent=None,
     ) -> None:
         super().__init__(parent)
-        self._model_type = model_type
         self._model_path = model_path
         self._system_prompt = system_prompt
         self._text = text
