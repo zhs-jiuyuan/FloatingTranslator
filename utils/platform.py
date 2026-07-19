@@ -148,6 +148,8 @@ class _WinMouseHookMonitor(SelectionMonitor):
 class _WinHookThread(QThread):
     text_selected = Signal(str)
 
+    WM_QUIT = 0x0012
+
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._hook_id: int | None = None
@@ -159,6 +161,7 @@ class _WinHookThread(QThread):
 
     def run(self) -> None:
         import ctypes
+        import win32api
         from ctypes import wintypes
 
         user32 = ctypes.windll.user32
@@ -185,12 +188,10 @@ class _WinHookThread(QThread):
             if nCode < 0:
                 return user32.CallNextHookEx(self._hook_id, nCode, wParam, lParam)
             if wParam == WM_LBUTTONDOWN:
-                import win32api
                 self._start_x, self._start_y = win32api.GetCursorPos()
                 self._button_down = True
             elif wParam == WM_LBUTTONUP and self._button_down:
                 self._button_down = False
-                import win32api
                 end_x, end_y = win32api.GetCursorPos()
                 if (abs(end_x - self._start_x) > _DRAG_THRESHOLD
                         or abs(end_y - self._start_y) > _DRAG_THRESHOLD):
@@ -223,13 +224,17 @@ class _WinHookThread(QThread):
         import ctypes
         if self._hook_id:
             user32 = ctypes.windll.user32
-            user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)
+            user32.PostThreadMessageW(self._thread_id, _WinHookThread.WM_QUIT, 0, 0)
 
     @staticmethod
     def _capture_selection() -> str:
-        import win32con
-        import win32clipboard
-        import win32api
+        try:
+            import win32con
+            import win32clipboard
+            import win32api
+        except ImportError:
+            logger.error("pywin32 未安装，无法捕获选区")
+            return ""
 
         _COPY_DELAY = 0.05
 
