@@ -16,7 +16,6 @@ if not hasattr(six._SixMetaPathImporter, "_path"):
 
 import logging
 import signal
-import subprocess
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
@@ -29,6 +28,7 @@ from engine.local_model import LocalModelEngine
 from ui.floating_window import FloatingWindow
 from ui.settings_dialog import SettingsDialog
 from ui.tray_icon import TrayIcon
+from utils.clipboard import read_selection
 from utils.language_detector import LanguageDetector
 
 logger = logging.getLogger(__name__)
@@ -90,11 +90,21 @@ class FloatingTranslatorApp:
 
         self._connect_engine()
 
-        # 启动剪贴板轮询
-        self._clipboard_timer = QTimer()
-        self._clipboard_timer.timeout.connect(self._poll_clipboard)
-        self._clipboard_timer.start(self.CLIPBOARD_POLL_MS)
-        logger.info("鼠标选区监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
+        if sys.platform == "win32":
+            self._start_win32_hook()
+        else:
+            self._clipboard_timer = QTimer()
+            self._clipboard_timer.timeout.connect(self._poll_clipboard)
+            self._clipboard_timer.start(self.CLIPBOARD_POLL_MS)
+            logger.info("鼠标选区监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
+
+    def _start_win32_hook(self) -> None:
+        from utils.hotkey_win import WinSelectionMonitor
+
+        self._selection_monitor = WinSelectionMonitor()
+        self._selection_monitor.text_selected.connect(self._on_selection)
+        self._selection_monitor.start()
+        logger.info("Windows 鼠标钩子已启动")
 
     def _disconnect_engine(self) -> None:
         try:
@@ -120,7 +130,7 @@ class FloatingTranslatorApp:
     def _poll_clipboard(self) -> None:
         if self._translating:
             return
-        text = self._read_primary_selection()
+        text = read_selection()
         if not text:
             if self._last_clipboard:
                 self._last_clipboard = ""
@@ -131,24 +141,10 @@ class FloatingTranslatorApp:
             self._last_clipboard = text
             self._translate(text)
 
-    @staticmethod
-    def _read_primary_selection() -> str:
-        try:
-            result = subprocess.run(
-                ["xclip", "-o", "-selection", "primary"],
-                capture_output=True, text=True, timeout=1,
-            )
-            if result.returncode == 0:
-                return result.stdout
-            return ""
-        except FileNotFoundError:
-            if not _read_primary_selection._warned:
-                logger.warning("xclip 未安装，无法读取鼠标选区翻译，请安装 xclip")
-                _read_primary_selection._warned = True
-            return ""
-        except Exception as e:
-            logger.debug("读取选区失败: %s", e)
-            return ""
+    def _on_selection(self, text: str) -> None:
+        if self._translating:
+            return
+        self._translate(text)
 
     def _on_engine_changed(self, engine_type: str) -> None:
         self._config.engine_type = engine_type
@@ -194,9 +190,6 @@ class FloatingTranslatorApp:
     def _on_error_occurred(self, error: str) -> None:
         self._translating = False
         self._floating_window.show_error(error)
-
-
-FloatingTranslatorApp._read_primary_selection._warned = False
 
 
 def main() -> None:
