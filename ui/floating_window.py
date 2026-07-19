@@ -159,7 +159,7 @@ class FloatingWindow(QWidget):
 
     def start_tracking(self) -> None:
         self._track_timer = QTimer(self)
-        self._track_timer.setInterval(50)
+        self._track_timer.setInterval(20)
         self._track_timer.timeout.connect(self._follow_cursor)
         self._fit_content()
         self.show()
@@ -250,7 +250,7 @@ class FloatingWindow(QWidget):
             y = screen_geom.top() + 8
 
         old_x, old_y = self.x(), self.y()
-        if abs(old_x - x) > 5 or abs(old_y - y) > 5:
+        if abs(old_x - x) > 2 or abs(old_y - y) > 2:
             self.move(x, y)
         if not self.isActiveWindow():
             self.raise_()
