@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from PySide6.QtCore import Qt, QPoint, QRect, QTimer, Signal
-from PySide6.QtGui import QCursor, QFont, QFontMetrics, QMouseEvent
+from PySide6.QtGui import QFont, QFontMetrics, QMouseEvent
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from utils.platform import get_cursor_pos
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +36,6 @@ class FloatingWindow(QWidget):
         self._auto_hide_timer = QTimer(self)
         self._auto_hide_timer.setSingleShot(True)
         self._auto_hide_timer.timeout.connect(self.close_requested.emit)
-
-        self._xd = None
-        try:
-            from Xlib import display as xdisplay
-            self._xd = xdisplay.Display()
-        except Exception:
-            pass
 
         self._setup_ui()
         self._setup_window(opacity)
@@ -230,16 +225,7 @@ class FloatingWindow(QWidget):
     def _follow_cursor(self) -> None:
         if self._dragging:
             return
-        if self._xd is not None:
-            try:
-                data = self._xd.screen().root.query_pointer()
-                cx, cy = data.root_x, data.root_y
-            except Exception:
-                p = QCursor.pos()
-                cx, cy = p.x(), p.y()
-        else:
-            p = QCursor.pos()
-            cx, cy = p.x(), p.y()
+        cx, cy = get_cursor_pos()
 
         cursor_global = QPoint(cx, cy)
         screen = QApplication.screenAt(cursor_global)
@@ -280,7 +266,4 @@ class FloatingWindow(QWidget):
         self._reset_auto_hide()
 
     def closeEvent(self, event) -> None:
-        if self._xd is not None:
-            self._xd.close()
-            self._xd = None
         super().closeEvent(event)

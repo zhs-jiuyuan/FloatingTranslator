@@ -17,7 +17,6 @@ if not hasattr(six._SixMetaPathImporter, "_path"):
 import logging
 import signal
 
-from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from config import AppConfig, ConfigManager
@@ -28,8 +27,8 @@ from engine.local_model import LocalModelEngine
 from ui.floating_window import FloatingWindow
 from ui.settings_dialog import SettingsDialog
 from ui.tray_icon import TrayIcon
-from utils.clipboard import read_selection
 from utils.language_detector import LanguageDetector
+from utils.platform import create_monitor, SelectionMonitor
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +65,11 @@ def create_engine(config: AppConfig) -> TranslationEngine:
 
 
 class FloatingTranslatorApp:
-    CLIPBOARD_POLL_MS = 300  # 剪贴板轮询间隔
 
     def __init__(self) -> None:
         self._config_path = os.path.join(BASE_DIR, "config.json")
         self._config = ConfigManager.load(self._config_path)
         self._engine = create_engine(self._config)
-        self._last_clipboard = ""
-        self._translating = False
         QApplication.clipboard().clear()
 
         self._floating_window = FloatingWindow(
@@ -90,22 +86,9 @@ class FloatingTranslatorApp:
 
         self._connect_engine()
 
-        if sys.platform == "win32":
-            self._start_win32_hook()
-        else:
-            self._clipboard_timer = QTimer()
-            self._clipboard_timer.timeout.connect(self._poll_clipboard)
-            self._clipboard_timer.start(self.CLIPBOARD_POLL_MS)
-            logger.info("鼠标选区监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
-
-    def _start_win32_hook(self) -> None:
-        from utils.hotkey_win import WinSelectionMonitor
-
-        self._selection_monitor = WinSelectionMonitor()
-        self._selection_monitor.text_selected.connect(self._on_selection)
-        self._selection_monitor.start()
-        QApplication.instance().aboutToQuit.connect(self._selection_monitor.stop)
-        logger.info("Windows 鼠标钩子已启动")
+        self._monitor = create_monitor()
+        self._monitor.text_selected.connect(self._on_selection)
+        self._monitor.start()
 
     def _disconnect_engine(self) -> None:
         try:
@@ -125,26 +108,12 @@ class FloatingTranslatorApp:
         self._disconnect_engine()
         self._engine = create_engine(self._config)
         self._connect_engine()
-        self._translating = False
-        self._last_clipboard = ""
-
-    def _poll_clipboard(self) -> None:
-        if self._translating:
-            return
-        text = read_selection()
-        if not text:
-            if self._last_clipboard:
-                self._last_clipboard = ""
-                self._floating_window.clear_content()
-            return
-        if text != self._last_clipboard:
-            logger.debug("检测到选区变化: %s...", text[:80])
-            self._last_clipboard = text
-            self._translate(text)
+        if hasattr(self._monitor, "set_translating"):
+            self._monitor.set_translating(False)
+        if hasattr(self._monitor, "reset_last"):
+            self._monitor.reset_last()
 
     def _on_selection(self, text: str) -> None:
-        if self._translating:
-            return
         self._translate(text)
 
     def _on_engine_changed(self, engine_type: str) -> None:
@@ -168,7 +137,8 @@ class FloatingTranslatorApp:
             logger.info("配置已更新")
 
     def _translate(self, text: str) -> None:
-        self._translating = True
+        if hasattr(self._monitor, "set_translating"):
+            self._monitor.set_translating(True)
         source_lang = LanguageDetector.detect(text)
         target_lang = self._config.target_lang
 
@@ -185,12 +155,14 @@ class FloatingTranslatorApp:
         self._engine.translate(text, source_lang, target_lang)
 
     def _on_result_ready(self, result: str) -> None:
-        self._translating = False
         self._floating_window.set_result(result)
+        if hasattr(self._monitor, "set_translating"):
+            self._monitor.set_translating(False)
 
     def _on_error_occurred(self, error: str) -> None:
-        self._translating = False
         self._floating_window.show_error(error)
+        if hasattr(self._monitor, "set_translating"):
+            self._monitor.set_translating(False)
 
 
 def main() -> None:
