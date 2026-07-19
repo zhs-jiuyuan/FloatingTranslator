@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
-import threading
+from functools import lru_cache
 
 from PySide6.QtCore import QThread, Signal
 
@@ -11,22 +11,16 @@ from engine.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
-_llm_lock = threading.Lock()
-_llm_cache: dict[str, object] = {}
 
-
+@lru_cache(maxsize=2)
 def _get_llama(model_path: str):
     path = os.path.expanduser(model_path)
-    if path not in _llm_cache:
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f"模型文件不存在: {path}")
-        from llama_cpp import Llama
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"模型文件不存在: {path}")
+    from llama_cpp import Llama
 
-        logger.info("加载 GGUF 模型: %s", path)
-        _llm_cache[path] = Llama(
-            model_path=path, n_ctx=2048, verbose=False
-        )
-    return _llm_cache[path]
+    logger.info("加载 GGUF 模型: %s", path)
+    return Llama(model_path=path, n_ctx=2048, verbose=False)
 
 
 class LocalModelEngine(TranslationEngine):
@@ -91,32 +85,34 @@ class _LocalTranslateThread(QThread):
 
     def run(self) -> None:
         try:
-            if self._model_type == "llama_cpp":
-                self._run_llama_cpp()
-            else:
-                self.error_occurred.emit(f"不支持的本地模型类型: {self._model_type}")
+            self._run_llama_cpp()
         except Exception as e:
             logger.exception("本地模型翻译异常")
             self.error_occurred.emit(f"本地模型翻译失败: {e}")
 
+
     def _run_llama_cpp(self) -> None:
         try:
-            with _llm_lock:
-                llm = _get_llama(self._model_path)
-                output = llm.create_chat_completion(
-                    messages=[
-                        {"role": "system", "content": self._system_prompt},
-                        {
-                            "role": "user",
-                            "content": (
-                                f"将以下{self._source_lang}文本翻译成"
-                                f"{self._target_lang}：\n\n{self._text}"
-                            ),
-                        },
-                    ],
-                    max_tokens=512,
-                    temperature=0.3,
-                )
+            llm = _get_llama(self._model_path)
+            if self._source_lang == "zh" and self._target_lang == "en":
+                prefix = '翻译示例：\n"你好世界" → "hello world"\n"机器学习" → "machine learning"\n\n'
+            else:
+                prefix = ""
+            output = llm.create_chat_completion(
+                messages=[
+                    {"role": "system", "content": self._system_prompt},
+                    {
+                        "role": "user",
+                        "content": (
+                            f"{prefix}"
+                            f"将以下{self._source_lang}文本翻译成"
+                            f"{self._target_lang}：\n\n{self._text}"
+                        ),
+                    },
+                ],
+                max_tokens=512,
+                temperature=0.3,
+            )
             result = output["choices"][0]["message"]["content"].strip()
             if result:
                 self.result_ready.emit(result)

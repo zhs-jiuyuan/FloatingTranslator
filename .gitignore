@@ -235,3 +235,6 @@ logs/*
 
 # User config (contains API keys)
 config.json
+
+# Tests (not needed for deployment)
+tests/

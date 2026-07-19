@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ DEFAULT_SYSTEM_PROMPT = (
 @dataclass
 class AppConfig:
     target_lang: str = "zh"
-    source_lang: str = "auto"
+
     engine_type: str = "free_online"
     opacity: float = 0.92
     auto_hide_seconds: int = 0

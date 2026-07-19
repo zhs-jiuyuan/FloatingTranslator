@@ -18,7 +18,7 @@ import logging
 import signal
 import subprocess
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
 from config import AppConfig, ConfigManager
@@ -88,7 +88,7 @@ class FloatingTranslatorApp:
         self._tray_icon.settings_requested.connect(self._open_settings)
         self._tray_icon.show()
 
-        self._connect_engine_signals()
+        self._connect_engine()
 
         # 启动剪贴板轮询
         self._clipboard_timer = QTimer()
@@ -96,7 +96,7 @@ class FloatingTranslatorApp:
         self._clipboard_timer.start(self.CLIPBOARD_POLL_MS)
         logger.info("鼠标选区监听已启动 (间隔 %dms)", self.CLIPBOARD_POLL_MS)
 
-    def _connect_engine_signals(self) -> None:
+    def _disconnect_engine(self) -> None:
         try:
             self._engine.result_ready.disconnect()
         except RuntimeError:
@@ -105,8 +105,17 @@ class FloatingTranslatorApp:
             self._engine.error_occurred.disconnect()
         except RuntimeError:
             pass
+
+    def _connect_engine(self) -> None:
         self._engine.result_ready.connect(self._on_result_ready)
         self._engine.error_occurred.connect(self._on_error_occurred)
+
+    def _swap_engine(self) -> None:
+        self._disconnect_engine()
+        self._engine = create_engine(self._config)
+        self._connect_engine()
+        self._translating = False
+        self._last_clipboard = ""
 
     def _poll_clipboard(self) -> None:
         if self._translating:
@@ -131,14 +140,19 @@ class FloatingTranslatorApp:
             )
             if result.returncode == 0:
                 return result.stdout
-        except Exception:
-            pass
-        return ""
+            return ""
+        except FileNotFoundError:
+            if not _read_primary_selection._warned:
+                logger.warning("xclip 未安装，无法读取鼠标选区翻译，请安装 xclip")
+                _read_primary_selection._warned = True
+            return ""
+        except Exception as e:
+            logger.debug("读取选区失败: %s", e)
+            return ""
 
     def _on_engine_changed(self, engine_type: str) -> None:
         self._config.engine_type = engine_type
-        self._engine = create_engine(self._config)
-        self._connect_engine_signals()
+        self._swap_engine()
         self._tray_icon.update_engine_check(engine_type)
         logger.info("引擎已切换为: %s", self._engine.engine_name)
         self._tray_icon.show_message(
@@ -150,8 +164,7 @@ class FloatingTranslatorApp:
         dialog.opacity_preview.connect(self._floating_window.set_opacity)
         if dialog.exec() == SettingsDialog.DialogCode.Accepted:
             self._config = dialog.get_config()
-            self._engine = create_engine(self._config)
-            self._connect_engine_signals()
+            self._swap_engine()
             self._floating_window.set_opacity(self._config.opacity)
             self._floating_window.set_auto_hide_seconds(self._config.auto_hide_seconds)
             self._tray_icon.update_engine_check(self._config.engine_type)
@@ -181,6 +194,9 @@ class FloatingTranslatorApp:
     def _on_error_occurred(self, error: str) -> None:
         self._translating = False
         self._floating_window.show_error(error)
+
+
+FloatingTranslatorApp._read_primary_selection._warned = False
 
 
 def main() -> None:

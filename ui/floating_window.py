@@ -26,7 +26,6 @@ class FloatingWindow(QWidget):
         self, opacity: float = 0.92, parent=None
     ) -> None:
         super().__init__(parent)
-        self._opacity = opacity
         self._dragging = False
         self._drag_pos = None
         self._track_timer: QTimer | None = None
@@ -44,16 +43,16 @@ class FloatingWindow(QWidget):
             pass
 
         self._setup_ui()
-        self._setup_window()
+        self._setup_window(opacity)
 
-    def _setup_window(self) -> None:
+    def _setup_window(self, opacity: float) -> None:
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
-        self.setWindowOpacity(self._opacity)
+        self.setWindowOpacity(opacity)
 
     def _setup_ui(self) -> None:
         self.setFixedWidth(WINDOW_WIDTH)
@@ -153,17 +152,6 @@ class FloatingWindow(QWidget):
         self._reset_auto_hide()
         self.show()
 
-    def show_placeholder(self, text: str = "") -> None:
-        display = text or "翻译结果将在此处显示"
-        self._source_text.setVisible(False)
-        self._direction_label.setText("")
-        self._result_label.setText(display)
-        self._error_label.setVisible(False)
-        self._fit_content()
-        self._follow_cursor()
-        self._reset_auto_hide()
-        self.show()
-
     def clear_content(self) -> None:
         self._source_label.setText("原文")
         self._source_text.clear()
@@ -186,7 +174,6 @@ class FloatingWindow(QWidget):
         self._auto_hide_seconds = seconds
 
     def set_opacity(self, opacity: float) -> None:
-        self._opacity = opacity
         self.setWindowOpacity(opacity)
 
     def set_result(self, text: str) -> None:
@@ -224,7 +211,6 @@ class FloatingWindow(QWidget):
         if self._error_label.isVisible():
             h += spacing + self._error_label.sizeHint().height()
         self.adjustSize()
-        self.repaint()
         self.repaint()
 
     @staticmethod
@@ -292,3 +278,9 @@ class FloatingWindow(QWidget):
         self._dragging = False
         self._drag_pos = None
         self._reset_auto_hide()
+
+    def closeEvent(self, event) -> None:
+        if self._xd is not None:
+            self._xd.close()
+            self._xd = None
+        super().closeEvent(event)

@@ -6,7 +6,7 @@ import logging
 import requests
 from PySide6.QtCore import QThread, Signal
 
-from engine.base import TranslationEngine, TranslationError
+from engine.base import TranslationEngine
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,7 @@ class FreeOnlineEngine(TranslationEngine):
 
         self._detach_previous_thread()
 
-        lang_pair = f"{source_lang}|{target_lang}"
-        if source_lang == "auto":
-            lang_pair = f"|{target_lang}"
+        lang_pair = f"|{target_lang}" if source_lang == "auto" else f"{source_lang}|{target_lang}"
 
         self._thread = _TranslateThread(
             url=MYMEMORY_URL,

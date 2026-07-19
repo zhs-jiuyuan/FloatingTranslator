@@ -56,7 +56,7 @@ class TrayIcon(QSystemTrayIcon):
             action = QAction(label, self)
             action.setCheckable(True)
             action.setChecked(key == self._config.engine_type)
-            action.triggered.connect(lambda checked, k=key: self.engine_changed.emit(k))
+            action.triggered.connect(lambda _checked, k=key: self.engine_changed.emit(k))
             engine_menu.addAction(action)
             self._engine_actions[key] = action
 
