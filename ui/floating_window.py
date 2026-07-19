@@ -32,6 +32,7 @@ class FloatingWindow(QWidget):
         self._drag_pos = None
         self._track_timer: QTimer | None = None
 
+        self._last_size: tuple[int, int] | None = None
         self._auto_hide_seconds = 0
         self._auto_hide_timer = QTimer(self)
         self._auto_hide_timer.setSingleShot(True)
@@ -206,7 +207,10 @@ class FloatingWindow(QWidget):
         if self._error_label.isVisible():
             h += spacing + self._error_label.sizeHint().height()
         self.adjustSize()
-        self.repaint()
+        new_size = (self.width(), self.height())
+        if new_size != self._last_size:
+            self._last_size = new_size
+            self.repaint()
 
     @staticmethod
     def _label_height(label: QLabel, width: int) -> int:
@@ -246,8 +250,9 @@ class FloatingWindow(QWidget):
             y = screen_geom.top() + 8
 
         old_x, old_y = self.x(), self.y()
-        if abs(old_x - x) > 2 or abs(old_y - y) > 2:
+        if abs(old_x - x) > 5 or abs(old_y - y) > 5:
             self.move(x, y)
+        if not self.isActiveWindow():
             self.raise_()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
@@ -264,6 +269,16 @@ class FloatingWindow(QWidget):
         self._dragging = False
         self._drag_pos = None
         self._reset_auto_hide()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if self._track_timer is not None and not self._track_timer.isActive():
+            self._track_timer.start()
+
+    def hideEvent(self, event) -> None:
+        if self._track_timer is not None:
+            self._track_timer.stop()
+        super().hideEvent(event)
 
     def closeEvent(self, event) -> None:
         close_xdisplay()
