@@ -57,3 +57,4 @@ class TranslationEngine(QObject, ABC, metaclass=_QABCMeta):
             self._thread.quit()
             if not self._thread.wait(3000):
                 logger.warning("上一翻译线程未能在3秒内退出")
+        self._thread.deleteLater()
