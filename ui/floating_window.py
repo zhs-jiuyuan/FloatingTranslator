@@ -159,7 +159,7 @@ class FloatingWindow(QWidget):
 
     def start_tracking(self) -> None:
         self._track_timer = QTimer(self)
-        self._track_timer.setInterval(20)
+        self._track_timer.setInterval(16)
         self._track_timer.timeout.connect(self._follow_cursor)
         self._fit_content()
         self.show()
