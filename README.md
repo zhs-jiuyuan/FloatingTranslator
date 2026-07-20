@@ -1,65 +1,47 @@
 # FloatingTranslator
 
-桌面划词翻译器 — 选中文本 → 悬浮翻译窗
+桌面划词翻译 — 选中文本，悬浮窗弹出翻译。
 
 ## 快速开始
 
 ```bash
-# 1. 安装依赖
 pip install -r requirements.txt
-
-# 2. 启动
 python main.py
 ```
-
-## 使用方式
-
-1. 用鼠标选中任意文本
-2. 翻译结果在鼠标位置自动弹出
 
 ## 系统要求
 
 - Python 3.10+
-- **Linux**: 需要 X11 环境（依赖 `xclip` 读取选区，Wayland 下部分功能受限）
+- **Linux**: X11 环境，需安装 `xclip`；Wayland 下部分功能受限
+- **Windows**: 依赖 `pywin32`（自动安装）
 
-## 功能
+## 使用
 
-- 多引擎支持：免费 MyMemory / LLM API / 本地模型
-- 语言自动检测与反向翻译
-- 悬浮窗自动隐藏、智能避让屏幕边界
-- 系统托盘最小化
+鼠标划选文本，翻译结果在光标旁自动弹出。右键系统托盘图标可切换引擎、打开设置。
 
-## 本地模型（llama.cpp + GGUF）
+## 翻译引擎
 
-> 临时记录，README 待程序完成后重写。
+| 引擎 | 说明 |
+|------|------|
+| 免费在线 | MyMemory API，无需任何配置 |
+| LLM API | 兼容 OpenAI 接口，支持 DeepSeek 等 |
+| 本地模型 | llama.cpp + GGUF，完全离线 |
 
-本地翻译引擎基于 `llama-cpp-python` 加载 GGUF 格式模型。
+## 本地模型
 
-**1. 安装 llama-cpp-python**
-
-PyPI 只提供源码包，直接 `pip install llama-cpp-python` 需要本机有 gcc/cmake 编译工具，
-没有编译环境的机器请使用官方预编译包：
+需 GGUF 格式量化模型。以 Qwen2.5-1.5B 为例：
 
 ```bash
+# 安装 llama-cpp-python（无编译环境用预编译包）
 pip install llama-cpp-python --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-```
 
-**2. 下载 GGUF 模型（通过 ModelScope，国内直连）**
-
-```bash
+# 通过 ModelScope 下载模型
 pip install modelscope
 modelscope download --model Qwen/Qwen2.5-1.5B-Instruct-GGUF --include '*q4_k_m*' --local_dir ~/model
 ```
 
-注意必须下载 **GGUF 后缀仓库**的量化文件，safetensors 格式无法加载。
-模型大小参考：1.5B-q4_k_m 约 1.1GB（运行需 2GB 以上可用内存）。
+设置中选择"本地模型"，指定模型目录即可。首次加载约 10 秒，之后常驻内存。
 
-**3. 配置**
+## 配置
 
-设置界面选择"本地模型 (llama.cpp)"，"模型目录"填 GGUF 所在目录（默认 `~/model`），
-在"选择模型"下拉框中选取要用的模型文件。
-首次翻译会加载模型（约 10 秒），之后常驻内存无需重复加载。
-
-## 配置文件
-
-首次运行时自动生成 `config.json`，也可通过设置界面修改。
+首次运行自动生成 `config.json`，也可通过系统托盘 → 设置修改。API Key 等敏感信息保存在本地，不会同步到仓库。
