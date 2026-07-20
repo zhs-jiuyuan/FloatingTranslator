@@ -32,7 +32,12 @@ from utils.platform import create_monitor, SelectionMonitor
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+    RESOURCES_DIR = sys._MEIPASS  # type: ignore[attr-defined]
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    RESOURCES_DIR = BASE_DIR
 
 
 def setup_logging() -> None:
@@ -174,7 +179,7 @@ def main() -> None:
     app.setApplicationName("FloatingTranslator")
     app.setQuitOnLastWindowClosed(False)
 
-    style_path = os.path.join(BASE_DIR, "resources", "style.qss")
+    style_path = os.path.join(RESOURCES_DIR, "resources", "style.qss")
     if os.path.exists(style_path):
         with open(style_path, "r", encoding="utf-8") as f:
             app.setStyleSheet(f.read())
